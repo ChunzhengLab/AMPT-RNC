@@ -1550,6 +1550,23 @@ clin-6/2009
 c
         CALL HJANA1
 
+clin-2024 save hadrons before string melting (before ZPC):
+        if(isoft.eq.4.or.isoft.eq.5) then
+           WRITE(98,*) IAEVT, MISS, NATT, bimp, NELP,NINP,NELT,NINTHJ
+           do ihad=1,NATT
+              if(dmax1(abs(GXAR(ihad)),abs(GYAR(ihad)),
+     1             abs(GZAR(ihad)),abs(FTAR(ihad))).lt.9999) then
+                 WRITE(98,210) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
+     1                PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
+     2                GZAR(ihad),FTAR(ihad)
+              else
+                 WRITE(98,211) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
+     1                PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
+     2                GZAR(ihad),FTAR(ihad)
+              endif
+           enddo
+        endif
+
 clin-4/19/01 convert hadrons to partons for ZPC (with GX0 given):
         call htop
 

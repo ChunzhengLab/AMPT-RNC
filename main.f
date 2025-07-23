@@ -1,10 +1,17 @@
 c.....driver program for A Multi-Phase Transport model
       PROGRAM AMPT
 c
+      PARAMETER (MAXSTR=150001)
       double precision xmp, xmu, alpha, rscut2, cutof2, dshadow
       double precision smearp,smearh,dpcoal,drcoal,ecritl
       CHARACTER FRAME*8, PROJ*8, TARG*8
       character*25 amptvn
+      COMMON /ARPRC/ ITYPAR(MAXSTR),
+     &     GXAR(MAXSTR), GYAR(MAXSTR), GZAR(MAXSTR), FTAR(MAXSTR),
+     &     PXAR(MAXSTR), PYAR(MAXSTR), PZAR(MAXSTR), PEAR(MAXSTR),
+     &     XMAR(MAXSTR)
+      COMMON/HJGLBR/NELT,NINTHJ,NELP,NINP
+      common /lastt/itimeh,bimp
       COMMON/HMAIN1/EATT,JATT,NATT,NT,NP,N0,N01,N10,N11
       COMMON /HPARNT/HIPR1(100), IHPR2(50), HINT1(100), IHNT2(50)
       COMMON/LUDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
@@ -173,6 +180,13 @@ c
 c     AMPT momentum and space info at freezeout:
       OPEN (16, FILE = 'ana/ampt.dat', STATUS = 'UNKNOWN')
       OPEN (14, FILE = 'ana/zpc.dat', STATUS = 'UNKNOWN')
+c     hadrons before string melting (added 2024):
+      if(isoft.eq.4.or.isoft.eq.5) then
+         OPEN (98, FILE = 'ana/hadrons-before-melting.dat', 
+     1         STATUS = 'UNKNOWN')
+         OPEN (99, FILE = 'ana/hadrons-before-ART.dat', 
+     1         STATUS = 'UNKNOWN')
+      endif
 ctest off for resonance (phi, K*) studies:
 c      OPEN (17, FILE = 'ana/res-gain.dat', STATUS = 'UNKNOWN')
 c      OPEN (18, FILE = 'ana/res-loss.dat', STATUS = 'UNKNOWN')
@@ -238,6 +252,22 @@ c.....ART initialization and run
              CALL ARINI2(K)
  1000     CONTINUE
 c
+clin-2024 save hadrons after ZPC+coalescence, before ART:
+          if(isoft.eq.4.or.isoft.eq.5) then
+             WRITE(99,*) J, MISS, IAINT2(1), bimp, NELP,NINP,NELT,NINTHJ
+             do ihad=1,IAINT2(1)
+                if(dmax1(abs(GXAR(ihad)),abs(GYAR(ihad)),
+     1               abs(GZAR(ihad)),abs(FTAR(ihad))).lt.9999) then
+                   WRITE(99,210) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
+     1                  PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
+     2                  GZAR(ihad),FTAR(ihad)
+                else
+                   WRITE(99,211) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
+     1                  PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
+     2                  GZAR(ihad),FTAR(ihad)
+                endif
+             enddo
+          endif
           CALL ARTAN1
 clin-9/2012 Analysis is not used:
 c          CALL HJANA3
@@ -255,6 +285,8 @@ c       call iniflw(NEVNT,2)
 c       call frztm(NEVNT,2)
 c
        STOP
+ 210   format(I6,2(1x,f8.3),1x,f10.3,1x,f6.3,4(1x,f8.2))
+ 211   format(I6,2(1x,f8.3),1x,f10.3,1x,f6.3,4(1x,e8.2))
        END
 c     FYI: taken file unit numbers are 10-88, 91-93; 
 c     so free file unit numbers are 1-4,7-9,89,97-99.

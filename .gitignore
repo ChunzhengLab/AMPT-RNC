@@ -1,0 +1,65 @@
+# AMPT Model .gitignore
+
+# Compiled executables
+ampt
+exec
+
+# Fortran compiled object files
+*.o
+*.mod
+*.smod
+
+# Fortran temporary files
+*.tmp
+
+# Output data files
+ana/*.dat
+ana/*.txt
+ana/*.res
+ana/version
+nohup.out
+
+# Backup files
+*~
+*.bak
+*.backup
+
+# Editor temporary files
+.DS_Store
+*.swp
+*.swo
+*#
+
+# Log files
+*.log
+
+# Core dumps
+core
+core.*
+
+# IDE/Editor specific files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# Temporary directories
+tmp/
+temp/
+
+# Any custom output directories users might create
+output/
+results/
+data/
+
+# Keep the ana directory structure but ignore data files
+!ana/
+!ana/.gitkeep
+
+# Keep important documentation and configuration
+!readme
+!input.ampt
+!Makefile
