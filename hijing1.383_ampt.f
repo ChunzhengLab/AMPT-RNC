@@ -317,6 +317,15 @@ clin-4/26/01 lepton and photon info:
 cc      SAVE /NOPREC/
 clin-6/22/01:
         common /lastt/itimeh,bimp
+c       reshuffle initial quark momentum (added 2024):
+        INTEGER ISHLF
+        common /DTSHUF/ ISHLF
+c       reshuffle functionality variables (added 2024):
+        INTEGER idxshf(MAXPTN)
+        DOUBLE PRECISION tm_px(MAXPTN), tm_py(MAXPTN), tm_pz(MAXPTN)
+        DOUBLE PRECISION tmvlx, tmvly, tmvlz
+        INTEGER numshf
+        LOGICAL beshf
 cc      SAVE /lastt/
         COMMON /AREVT/ IAEVT, IARUN, MISS
         common/phidcy/iphidcy,pttrig,ntrig,maxmiss,ipi0dcy
@@ -1569,6 +1578,80 @@ clin-2024 save hadrons before string melting (before ZPC):
 
 clin-4/19/01 convert hadrons to partons for ZPC (with GX0 given):
         call htop
+
+c       reshuffle initial parton momentum (added 2024):
+        IF(ISHLF.gt.0) THEN
+           numshf = 0
+C          Find all to be shuffled partons and store their indices and momenta
+           DO I = 1, MUL
+              beshf=.FALSE.
+              ITYPA=abs(ITYP0(I))
+
+              IF(ISHLF.eq.1 .and. ITYPA.eq.1) THEN
+                 beshf=.TRUE.
+              ENDIF
+
+              IF(ISHLF.eq.2 .and. ITYPA.eq.2) THEN
+                 beshf=.TRUE.
+              ENDIF
+
+              IF(ISHLF.eq.3 .and. ITYPA.eq.3) THEN
+                 beshf=.TRUE.
+              ENDIF
+
+              IF(ISHLF.eq.4 .and. (ITYPA.eq.1.or.ITYPA.eq.2)) THEN
+                 beshf=.TRUE.
+              ENDIF
+
+              IF(ISHLF.eq.5 .and. 
+     &          (ITYPA.eq.1.or.ITYPA.eq.2.or.ITYPA.eq.3)) THEN
+                 beshf=.TRUE.
+              ENDIF
+
+              IF (ISHLF.eq.6) THEN
+                 beshf=.TRUE.
+              ENDIF
+
+              IF(beshf) THEN
+                 numshf = numshf + 1
+                 idxshf(numshf) = I
+                 tm_px(numshf) = PX0(I)
+                 tm_py(numshf) = PY0(I)
+                 tm_pz(numshf) = PZ0(I)
+              ENDIF
+           END DO
+
+C          Shuffle the temporary momentum arrays (Fisher-Yates shuffle)
+           IF (numshf.GT.1) THEN
+              DO I = numshf, 2, -1
+                 J = INT(RANART(NSEED)*(I-1))+1
+
+                 tmvlx = tm_px(I)
+                 tm_px(I) = tm_px(J)
+                 tm_px(J) = tmvlx
+
+                 tmvly = tm_py(I)
+                 tm_py(I) = tm_py(J)
+                 tm_py(J) = tmvly
+
+                 tmvlz = tm_pz(I)
+                 tm_pz(I) = tm_pz(J)
+                 tm_pz(J) = tmvlz
+              END DO
+           END IF
+
+C          Assign shuffled momenta back and recalculate energy
+           DO I = 1, numshf
+              PX0(idxshf(I)) = tm_px(I)
+              PY0(idxshf(I)) = tm_py(I)
+              PZ0(idxshf(I)) = tm_pz(I)
+              E0(idxshf(I)) = SQRT(PX0(idxshf(I))**2 + 
+     &            PY0(idxshf(I))**2 + 
+     &            PZ0(idxshf(I))**2 + 
+     &            XMASS0(idxshf(I))**2)
+           END DO
+           write(6,*) 'Reshuffled momentum for ',numshf,' partons'
+        ENDIF
 
 clin-7/03/01 move up, used in zpstrg (otherwise not set and incorrect):
         nsp=0

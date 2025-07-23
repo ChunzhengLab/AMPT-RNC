@@ -46,6 +46,7 @@ A               ! TARG
 0 		! Flag to enable users to modify shadowing (D=0,no; 1,yes)
 1.d0		! Factor used to modify nuclear shadowing
 0		! Flag for random orientation of reaction plane (D=0,no; 1,yes)
+0		! Flag for reshuffle initial quark option (D=0,no; 1,d;2,u;3,s;4,ud;5,uds;6,all)
 
 %%%%%%%%%% Further explanations:
 BMAX:   the upper limit HIPR1(34)+HIPR1(35)=19.87fm (dAu), 25.60fm(AuAu).
@@ -142,3 +143,14 @@ dshadow: valid when ishadow=1; this parameter modifies the HIJING shadowing
 	and the value of 1.d0 uses the default HIJING shadowing;
 	currently limited to 0.d0<=dshadow<=1.d0 to make sure Ra(x,r)>0.
 iphirp: set to 1 to turn on random orientation of reaction plane (D=0)
+ISHLF: flag for reshuffle initial quark momentum option (added 2024):
+	0 No reshuffle (default),
+	1 Reshuffle only d quarks (PYTHIA ID=1),
+	2 Reshuffle only u quarks (PYTHIA ID=2),
+	3 Reshuffle only s quarks (PYTHIA ID=3),
+	4 Reshuffle u and d quarks,
+	5 Reshuffle u, d, and s quarks,
+	6 Reshuffle all partons.
+	This feature randomly redistributes momentum among selected parton types
+	after string melting but before ZPC parton cascade, allowing studies
+	of initial state fluctuation effects on final observables.

@@ -12,6 +12,9 @@ c
      &     XMAR(MAXSTR)
       COMMON/HJGLBR/NELT,NINTHJ,NELP,NINP
       common /lastt/itimeh,bimp
+c     reshuffle initial quark momentum (added 2024):
+      INTEGER ISHLF
+      common /DTSHUF/ ISHLF
       COMMON/HMAIN1/EATT,JATT,NATT,NT,NP,N0,N01,N10,N11
       COMMON /HPARNT/HIPR1(100), IHPR2(50), HINT1(100), IHNT2(50)
       COMMON/LUDAT1/MSTU(200),PARU(200),MSTJ(200),PARJ(200)
@@ -121,6 +124,11 @@ clin-7/2009 Allow modification of nuclear shadowing:
       READ (24, *) ishadow
       READ (24, *) dshadow
       READ (24, *) iphirp
+c     reshuffle initial quark momentum option (added 2024):
+      READ (24, *) ISHLF
+      IF(ISHLF.gt.0) THEN
+        write(6,*) 'Reshuffle initial momentum ON with ISHLF=',ISHLF
+      ENDIF
 c
       CLOSE (24)
  111  format(a8)
