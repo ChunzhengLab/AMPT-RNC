@@ -3,7 +3,8 @@ c.....driver program for A Multi-Phase Transport model
 c
       PARAMETER (MAXSTR=150001)
       double precision xmp, xmu, alpha, rscut2, cutof2, dshadow
-      double precision smearp,smearh,dpcoal,drcoal,ecritl
+      double precision smearp,smearh,dpcoal,drcoal,ecritl,drbmRatio
+      integer icoal_method
       CHARACTER FRAME*8, PROJ*8, TARG*8
       character*25 amptvn
       COMMON /ARPRC/ ITYPAR(MAXSTR),
@@ -25,7 +26,7 @@ c     reshuffle initial quark momentum (added 2024):
       COMMON/RNDF77/NSEED
       common/anim/nevent,isoft,isflag,izpc
 c     parton coalescence radii in case of string melting:
-      common /coal/dpcoal,drcoal,ecritl
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
       common/snn/efrm,npart1,npart2,epsiPz,epsiPt,PZPROJ,PZTARG
 c     initialization value for parton cascade:
       common /para2/ xmp, xmu, alpha, rscut2, cutof2
@@ -96,6 +97,19 @@ c     read initialization value for parton cascade:
 c     quark coalescence radii in momentum and space for string melting:
       READ (24, *) dpcoal
       READ (24, *) drcoal
+c     coalescence method and B/M ratio parameter:
+      READ (24, *) icoal_method
+      READ (24, *) drbmRatio
+c     write(6,*) 'DEBUG: Read icoal_method=',icoal_method,', drbmRatio=',drbmRatio
+c     validate coalescence parameters:
+      if(icoal_method.lt.1.or.icoal_method.gt.2) then
+         write(6,*) 'Invalid coalescence method:',icoal_method
+         write(6,*) 'Valid options: 1=classic, 2=BM_competition'
+         stop
+      endif
+      if(drbmRatio.lt.0.0.or.drbmRatio.gt.2.0) then
+         write(6,*) 'Warning: drbmRatio out of typical range:',drbmRatio
+      endif
 c     flag: read in HIJING random # seed at runtime(1) or from input.ampt(D=0):
       READ (24, *) ihjsed
 c     2 seeds for random number generators in HIJING/hadron cascade and ZPC:

@@ -729,7 +729,8 @@ c
       dimension xmdiag(MAXSTR),indx(MAXSTR),ndiag(MAXSTR)
       SAVE   
 c
-      call coales
+c     write(6,*) 'LINANA: calling CZCOAL_MAIN with icoal_method=',icoal_method
+      call CZCOAL_MAIN()
 c     obtain particle mass here without broadening by Breit-Wigner width:
       mstj24=MSTJ(24)
       MSTJ(24)=0
@@ -1153,13 +1154,14 @@ c=======================================================================
       DIMENSION IOVER(MAXSTR),dp1(2:3),dr1(2:3)
       DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
      1     GXSGS,GYSGS,GZSGS,FTSGS
-      double precision  dpcoal,drcoal,ecritl
+      double precision  dpcoal,drcoal,ecritl,drbmRatio
+      integer icoal_method
       COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
      &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
      &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
      &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
 cc      SAVE /SOFT/
-      common /coal/dpcoal,drcoal,ecritl
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
 cc      SAVE /coal/
       common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
      1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
@@ -1965,6 +1967,8 @@ c
         implicit double precision  (a-h, o-z)
         PARAMETER (MAXPTN=400001)
         PARAMETER (r0=1d0)
+        double precision dpcoal,drcoal,ecritl,drbmRatio
+        integer icoal_method
         COMMON /para1/ mul
 cc      SAVE /para1/
         COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
@@ -1981,7 +1985,7 @@ cc      SAVE /frzprc/
 cc      SAVE /prec4/
         common /prec5/ eta(MAXPTN), rap(MAXPTN), tau(MAXPTN)
 cc      SAVE /prec5/
-        common /coal/dpcoal,drcoal,ecritl
+        common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
 cc      SAVE /coal/
         SAVE   
 c

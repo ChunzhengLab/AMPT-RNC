@@ -15,7 +15,8 @@ c.....before looping different events
       SUBROUTINE ARTSET
 c
       PARAMETER (AMU= 0.9383,nxymax=10001)
-      double precision dpcoal,drcoal,ecritl
+      double precision dpcoal,drcoal,ecritl,drbmRatio
+      integer icoal_method
       INTEGER ZTA, ZPR
       common  /gg/      dx,dy,dz,dpx,dpy,dpz
 clin-10/03/03 
@@ -35,7 +36,7 @@ cc      SAVE /INPUT2/
 cc      SAVE /INPUT3/
       common /imulst/ iperts
 cc      SAVE /imulst/
-      common /coal/dpcoal,drcoal,ecritl
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
       common/anim/nevent,isoft,isflag,izpc
       common /para7/ ioscar,nsmbbbar,nsmmeson
       common/embed/iembed,nsembd,pxqembd,pyqembd,xembd,yembd,
