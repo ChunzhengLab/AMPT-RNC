@@ -299,10 +299,48 @@ c     Method 2: B/M competition coalescence (simplified implementation)
 c-----------------------------------------------------------------------
       SUBROUTINE CZCOAL_BMCOMP()
 c
-c     For now, just use the classic method with a message
-c     This will be enhanced later
-      write(6,*) 'B/M competition coalescence - using classic for now'
+c     B/M competition coalescence with quark counting
+c
+      PARAMETER (MAXSTR=150001)
+      IMPLICIT DOUBLE PRECISION(D)
+      double precision  dpcoal,drcoal,ecritl,drbmRatio
+      integer icoal_method,nq,nqbar
+      DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
+     1     GXSGS,GYSGS,GZSGS,FTSGS
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG,NJSG(MAXSTR),IASG(MAXSTR,3),K1SG(MAXSTR,100),
+     &     K2SG(MAXSTR,100),PXSG(MAXSTR,100),PYSG(MAXSTR,100),
+     &     PZSG(MAXSTR,100),PESG(MAXSTR,100),PMSG(MAXSTR,100)
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      SAVE
+
+c     Count quarks and antiquarks
+      nq = 0
+      nqbar = 0
+      do i=1,NSG
+         if(NJSGS(i).eq.2) then
+c           Meson: 1 quark + 1 antiquark
+            nq = nq + 1
+            nqbar = nqbar + 1
+         elseif(NJSGS(i).eq.3) then
+c           Baryon or antibaryon: 3 quarks of same type
+            if(K2SGS(i,1).gt.0) then
+               nq = nq + 3      ! Baryon
+            else
+               nqbar = nqbar + 3  ! Antibaryon  
+            endif
+         endif
+      enddo
+      
+      write(6,*) 'B/M competition: NSG=',NSG,', nq=',nq,', nqbar=',nqbar
+      write(6,*) '  drbmRatio=',drbmRatio
+      
+c     For now, use classic algorithm
       call czcoal_classic()
+      
       return
       end
 
