@@ -39,11 +39,13 @@ c-----------------------------------------------------------------------
       SUBROUTINE CZCOAL_CLASSIC()
 c
       PARAMETER (MAXSTR=150001)
-      IMPLICIT DOUBLE PRECISION(D)
+      implicit double precision (a-h, o-z)
       DOUBLE PRECISION  gxp,gyp,gzp,ftp,pxp,pyp,pzp,pep,pmp
+      DOUBLE PRECISION  drlocl,dplocl
       DIMENSION IOVER(MAXSTR),dp1(2:3),dr1(2:3)
       DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
      1     GXSGS,GYSGS,GZSGS,FTSGS
+      INTEGER  K1SGS,K2SGS,NJSGS
       double precision  dpcoal,drcoal,ecritl,drbmRatio
       integer icoal_method
       COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
@@ -299,14 +301,20 @@ c     Method 2: B/M competition coalescence (simplified implementation)
 c-----------------------------------------------------------------------
       SUBROUTINE CZCOAL_BMCOMP()
 c
-c     B/M competition coalescence with quark counting
+c     B/M competition coalescence (newHF algorithm)
 c
       PARAMETER (MAXSTR=150001)
-      IMPLICIT DOUBLE PRECISION(D)
+      implicit double precision (a-h, o-z)
+      PARAMETER (MAXPTN=400001,drbig=1d9)
       double precision  dpcoal,drcoal,ecritl,drbmRatio
-      integer icoal_method,nq,nqbar
+      double precision  pslimit,xmbcut,xfactor
+      integer icoal_method,nq,nqbar,imbcut
       DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
      1     GXSGS,GYSGS,GZSGS,FTSGS
+      INTEGER  K1SGS,K2SGS,NJSGS,NSG,NJSG,IASG,K1SG,K2SG,ITYP5
+      DOUBLE PRECISION  gxp,gyp,gzp,ftp,pxp,pyp,pzp,pep,pmp
+      DOUBLE PRECISION  GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      DIMENSION IOVER(MAXPTN)
       COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
      &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
      &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
@@ -314,46 +322,561 @@ c
       COMMON/HJJET2/NSG,NJSG(MAXSTR),IASG(MAXSTR,3),K1SG(MAXSTR,100),
      &     K2SG(MAXSTR,100),PXSG(MAXSTR,100),PYSG(MAXSTR,100),
      &     PZSG(MAXSTR,100),PESG(MAXSTR,100),PMSG(MAXSTR,100)
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
+     1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
       common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
       SAVE
 
-c     Count quarks and antiquarks
-      nq = 0
-      nqbar = 0
-      do i=1,NSG
-         if(NJSGS(i).eq.2) then
-c           Meson: 1 quark + 1 antiquark
-            nq = nq + 1
-            nqbar = nqbar + 1
-         elseif(NJSGS(i).eq.3) then
-c           Baryon or antibaryon: 3 quarks of same type
-            if(K2SGS(i,1).gt.0) then
-               nq = nq + 3      ! Baryon
-            else
-               nqbar = nqbar + 3  ! Antibaryon  
-            endif
-         endif
-      enddo
+c     Set newHF default parameters (hardcoded as in original)
+      pslimit = 0.3d0      ! PYTHIA default PARJ(2) value  
+      imbcut = 0           ! No baryon mass requirement
+      xmbcut = 0d0         ! Minimum baryon invariant mass (unused)
+c     drbmRatio comes from common block (configurable)
+
+c     Set xfactor based on imbcut
+      if(imbcut.eq.0) then
+         xmbcut=0.d0
+         xfactor=0d0
+      elseif(imbcut.eq.1) then
+         xfactor=0d0
+      elseif(imbcut.eq.2) then
+         xfactor=1d0
+      else
+         write(6,*) 'Invalid value for imbcut', imbcut
+         stop
+      endif
+
+c     Convert /SOFT/ data to /prec2/ format
+      call czcoal_soft_to_prec2(nq, nqbar)
       
-      write(6,*) 'B/M competition: NSG=',NSG,', nq=',nq,', nqbar=',nqbar
+      write(6,*) 'B/M competition: MUL=',MUL,', nq=',nq,', nqbar=',nqbar
       write(6,*) '  drbmRatio=',drbmRatio
       
-c     For now, use classic algorithm
-      call czcoal_classic()
+c     Call newHF coalescence algorithm
+      call czcoal_newhf_bmcomp(nq, nqbar, xmbcut, xfactor)
+      
+c     No need to convert back - newHF already writes to /SOFT/
       
       return
       end
 
 c-----------------------------------------------------------------------
-c     Shared utility functions
+c     Data conversion functions for newHF B/M competition
 c-----------------------------------------------------------------------
-      SUBROUTINE CZCOAL_LOCLDR(icall,drlocl)
+      SUBROUTINE czcoal_soft_to_prec2(nq, nqbar)
+c
+c     Convert /SOFT/ format to /prec2/ format for newHF algorithm
+c     Expand grouped partons to individual partons
+c
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
+     1     GXSGS,GYSGS,GZSGS,FTSGS
+      INTEGER  K1SGS,K2SGS,NJSGS,NSG,NJSG,IASG,K1SG,K2SG,ITYP5
+      DOUBLE PRECISION  GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      integer nq,nqbar
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG,NJSG(MAXSTR),IASG(MAXSTR,3),K1SG(MAXSTR,100),
+     &     K2SG(MAXSTR,100),PXSG(MAXSTR,100),PYSG(MAXSTR,100),
+     &     PZSG(MAXSTR,100),PESG(MAXSTR,100),PMSG(MAXSTR,100)
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      SAVE
+
+c     Convert grouped partons in /SOFT/ to individual partons in /prec2/
+      MUL = 0
+      nq = 0 
+      nqbar = 0
+      
+      do isg=1,NSG
+         if(NJSGS(isg).eq.0) cycle
+         
+         do ip=1,NJSGS(isg)
+            MUL = MUL + 1
+            if(MUL.gt.MAXPTN) then
+               write(6,*) 'czcoal_soft_to_prec2: MUL exceeds MAXPTN'
+               stop
+            endif
+            
+c           Copy parton data
+            GX5(MUL) = GXSGS(isg,ip)
+            GY5(MUL) = GYSGS(isg,ip) 
+            GZ5(MUL) = GZSGS(isg,ip)
+            FT5(MUL) = FTSGS(isg,ip)
+            PX5(MUL) = PXSGS(isg,ip)
+            PY5(MUL) = PYSGS(isg,ip)
+            PZ5(MUL) = PZSGS(isg,ip)
+            E5(MUL) = PESGS(isg,ip)
+            XMASS5(MUL) = PMSGS(isg,ip)
+            
+c           Set parton type: positive for quarks, negative for antiquarks
+            if(K2SGS(isg,ip).gt.0) then
+               ITYP5(MUL) = K2SGS(isg,ip)    ! Keep flavor info
+               nq = nq + 1
+            else
+               ITYP5(MUL) = K2SGS(isg,ip)    ! Keep flavor info (negative)
+               nqbar = nqbar + 1
+            endif
+         enddo
+      enddo
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_setPtoH(isg,npmb,ip1,ip2,ip3)
+c
+c     Set partons to hadron - copy from /prec2/ to /SOFT/
+c     (Adapted from newHF setPtoH)
+c
+      implicit double precision  (a-h, o-z)
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      SAVE   
+c
+      NJSGS(isg)=npMB
+      do ipH=1,npmb
+         if(ipH.eq.1) then
+            ip=ip1
+         elseif(ipH.eq.2) then
+            ip=ip2
+         else
+            ip=ip3
+         endif
+         K2SGS(isg,ipH)=ITYP5(ip)
+         PXSGS(isg,ipH)=PX5(ip)
+         PYSGS(isg,ipH)=PY5(ip)
+         PZSGS(isg,ipH)=PZ5(ip)
+         PESGS(isg,ipH)=E5(ip)
+         PMSGS(isg,ipH)=XMASS5(ip)
+         GXSGS(isg,ipH)=GX5(ip)
+         GYSGS(isg,ipH)=GY5(ip)
+         GZSGS(isg,ipH)=GZ5(ip)
+         FTSGS(isg,ipH)=FT5(ip)
+      enddo
+c
+      RETURN
+      END
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_newhf_bmcomp(nq, nqbar, xmbcut, xfactor)
+c
+c     newHF B/M competition coalescence algorithm (simplified)
+c     Adapted from newHF coales subroutine
+c
+      implicit double precision (a-h, o-z)
+      PARAMETER (MAXSTR=150001, MAXPTN=400001, drbig=1d9)
+      DOUBLE PRECISION  gxp,gyp,gzp,ftp,pxp,pyp,pzp,pep,pmp
+      INTEGER  K1SGS,K2SGS,NJSGS,NSG,NJSG,IASG,K1SG,K2SG,ITYP5
+      DOUBLE PRECISION  GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      double precision  dpcoal,drcoal,ecritl,xmbcut,xfactor,drbmRatio
+      double precision  gxp0,gyp0,gzp0,ft0fom,drlocl,drlot
+      double precision  drlo1,drlo2,drlo3,drlo1t,drlo2t,drlo3t
+      double precision  dr0,dr0m,dr0b1,drAvg,drAvg0,dp0,dplocl
+      double precision  xm3q0,xm3q,drAvg2,drAvg3
+      integer nq,nqbar,npmb,nsmm1,nsmb1,nsmab1
+      DIMENSION IOVER(MAXPTN)
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG,NJSG(MAXSTR),IASG(MAXSTR,3),K1SG(MAXSTR,100),
+     &     K2SG(MAXSTR,100),PXSG(MAXSTR,100),PYSG(MAXSTR,100),
+     &     PZSG(MAXSTR,100),PESG(MAXSTR,100),PMSG(MAXSTR,100)
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
+     1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
+      common /prtn23/ gxp0(3),gyp0(3),gzp0(3),ft0fom,drlocl,drlot,
+     1     drlo1,drlo2,drlo3,drlo1t,drlo2t,drlo3t
+      common /para7/ ioscar,nsmm0,nsmb0,nsmab0,nsmm1,nsmb1,nsmab1
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      SAVE
+      
+c     Initialize
+      isg=0
+      nsmm1=0
+      nsmb1=0
+      nsmab1=0
+      do ip=1,mul
+         IOVER(ip)=0
+      enddo
+      
+c     First sort partons by freeze-out time 
+      call czcoal_parORD()
+      
+c     Main loop over partons
+      do 350 ip1=1,mul-1
+c        Skip used partons
+         if(IOVER(ip1).eq.1) goto 350
+         IOVER(ip1)=1
+         
+c        Load first parton data
+         gxp(1)=gx5(ip1)
+         gyp(1)=gy5(ip1)
+         gzp(1)=gz5(ip1)
+         ftp(1)=ft5(ip1)
+         pxp(1)=px5(ip1)
+         pyp(1)=py5(ip1)
+         pzp(1)=pz5(ip1)
+         pep(1)=e5(ip1)
+         pmp(1)=xmass5(ip1)
+         
+         dr0m=drbig
+         dr0b1=drbig
+         
+c        Find best meson partner
+         ip2m=0
+         do 120 ip2=ip1+1,mul
+            if(IOVER(ip2).eq.1) goto 120
+c           Check if opposite charge (meson condition)
+            if((ITYP5(ip1)*ITYP5(ip2)).ge.0) goto 120
+            
+c           Load second parton
+            gxp(2)=gx5(ip2)
+            gyp(2)=gy5(ip2)
+            gzp(2)=gz5(ip2)
+            ftp(2)=ft5(ip2)
+            pxp(2)=px5(ip2)
+            pyp(2)=py5(ip2)
+            pzp(2)=pz5(ip2)
+            pep(2)=e5(ip2)
+            pmp(2)=xmass5(ip2)
+            
+c           Calculate distances
+            call czcoal_locldr_newhf(2,1,2)
+            dr0=drlocl
+            
+c           Check momentum constraint
+            dp0=dsqrt(2*(pep(1)*pep(2)-pxp(1)*pxp(2)
+     &           -pyp(1)*pyp(2)-pzp(1)*pzp(2)-pmp(1)*pmp(2)))
+            if(dp0.gt.dpcoal) goto 120
+            
+c           Update best meson candidate
+            if(dr0.lt.dr0m) then
+               dr0m=dr0
+               ip2m=ip2
+            endif
+ 120     continue
+         
+c        Find best baryon partners
+         ip2b0=0
+         do 130 ip2=ip1+1,mul
+            if(IOVER(ip2).eq.1) goto 130
+c           Check if same charge (baryon condition)
+            if((ITYP5(ip1)*ITYP5(ip2)).lt.0) goto 130
+            
+c           Load second parton
+            gxp(2)=gx5(ip2)
+            gyp(2)=gy5(ip2)
+            gzp(2)=gz5(ip2)
+            ftp(2)=ft5(ip2)
+            pxp(2)=px5(ip2)
+            pyp(2)=py5(ip2)
+            pzp(2)=pz5(ip2)
+            pep(2)=e5(ip2)
+            pmp(2)=xmass5(ip2)
+            
+c           Calculate distance
+            call czcoal_locldr_newhf(2,1,2)
+            dr0=drlocl
+            if(dr0.ge.dr0b1.and.dr0.ge.dr0m) goto 130
+            
+c           Update best 2nd baryon partner
+            if(dr0.lt.dr0b1) then
+               dr0b1=dr0
+               ip2b0=ip2
+            endif
+ 130     continue
+         
+c        Decision logic
+         if((ITYP5(ip1).gt.0.and.nq.eq.2).or.
+     1      (ITYP5(ip1).lt.0.and.nqbar.eq.2)) then
+c           Only 2 quarks/antiquarks left - must form meson
+            npmb=2
+         elseif(ip2b0.eq.0) then
+c           No baryon partner found
+            npmb=2
+         elseif(ip2b0.ne.0) then
+c           Find third baryon partner and compete with meson
+            gxp(2)=gx5(ip2b0)
+            gyp(2)=gy5(ip2b0)
+            gzp(2)=gz5(ip2b0)
+            ftp(2)=ft5(ip2b0)
+            pxp(2)=px5(ip2b0)
+            pyp(2)=py5(ip2b0)
+            pzp(2)=pz5(ip2b0)
+            pep(2)=e5(ip2b0)
+            pmp(2)=xmass5(ip2b0)
+            
+            drAvg0=drbig
+            ip3b0=0
+            do 140 ip3=ip1+1,mul
+               if(IOVER(ip3).eq.1.or.(ITYP5(ip1)*ITYP5(ip3)).lt.0
+     1            .or.ip3.eq.ip2b0) goto 140
+               
+               gxp(3)=gx5(ip3)
+               gyp(3)=gy5(ip3)
+               gzp(3)=gz5(ip3)
+               ftp(3)=ft5(ip3)
+               pxp(3)=px5(ip3)
+               pyp(3)=py5(ip3)
+               pzp(3)=pz5(ip3)
+               pep(3)=e5(ip3)
+               pmp(3)=xmass5(ip3)
+               
+c              Calculate 3-body distances
+               call czcoal_locldr_newhf(3,0,0)
+               drAvg=(drlo1+drlo2+drlo3)/3d0
+               
+               if(drAvg.lt.drAvg0) then
+                  drAvg0=drAvg
+                  ip3b0=ip3
+               endif
+ 140        continue
+            
+c           B/M competition decision
+            if(drAvg0.lt.drbig.and.dr0m.lt.drbig) then
+               if(drAvg0.lt.(drbmRatio*dr0m)) then
+                  npmb=3
+               else
+                  npmb=2
+               endif
+            elseif(drAvg0.lt.drbig) then
+               npmb=3
+            elseif(dr0m.lt.drbig) then
+               npmb=2
+            else
+               write(6,*) 'error in coalescence for ip=',ip1,nq,nqbar
+               stop
+            endif
+         endif
+         
+c        Form hadron
+         isg=isg+1
+         if(npmb.eq.2) then
+c           Form meson
+            IOVER(ip2m)=1
+            call czcoal_setPtoH(isg,npmb,ip1,ip2m,0)
+            nsmm1=nsmm1+1
+            nq=nq-1
+            nqbar=nqbar-1
+         elseif(npmb.eq.3) then
+c           Form baryon
+            IOVER(ip2b0)=1
+            IOVER(ip3b0)=1
+            call czcoal_setPtoH(isg,npmb,ip1,ip2b0,ip3b0)
+            if(ITYP5(ip1).gt.0) then
+               nsmb1=nsmb1+1
+               nq=nq-3
+            else
+               nsmab1=nsmab1+1
+               nqbar=nqbar-3
+            endif
+         endif
+         
+ 350  continue
+      
+      NSG=isg
+      write(6,*) 'newHF B/M done: nsmm1=',nsmm1,', nsmb1=',nsmb1,
+     &           ', nsmab1=',nsmab1
+      
+      RETURN
+      END
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_parORD()
+c
+c     Sort partons by freeze-out time (simple bubble sort)
+c     Adapted from newHF parORD
+c
+      implicit double precision (a-h, o-z)
+      PARAMETER (MAXPTN=400001)
+      DOUBLE PRECISION  GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      DOUBLE PRECISION  temp
+      integer itemp,ITYP5
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      SAVE
+      
+c     Simple bubble sort by FT5 (freeze-out time)
+      do i=1,MUL-1
+         do j=i+1,MUL
+            if(FT5(j).lt.FT5(i)) then
+c              Swap all properties
+               temp=GX5(i)
+               GX5(i)=GX5(j)
+               GX5(j)=temp
+               
+               temp=GY5(i)
+               GY5(i)=GY5(j)
+               GY5(j)=temp
+               
+               temp=GZ5(i)
+               GZ5(i)=GZ5(j)
+               GZ5(j)=temp
+               
+               temp=FT5(i)
+               FT5(i)=FT5(j)
+               FT5(j)=temp
+               
+               temp=PX5(i)
+               PX5(i)=PX5(j)
+               PX5(j)=temp
+               
+               temp=PY5(i)
+               PY5(i)=PY5(j)
+               PY5(j)=temp
+               
+               temp=PZ5(i)
+               PZ5(i)=PZ5(j)
+               PZ5(j)=temp
+               
+               temp=E5(i)
+               E5(i)=E5(j)
+               E5(j)=temp
+               
+               temp=XMASS5(i)
+               XMASS5(i)=XMASS5(j)
+               XMASS5(j)=temp
+               
+               itemp=ITYP5(i)
+               ITYP5(i)=ITYP5(j)
+               ITYP5(j)=itemp
+            endif
+         enddo
+      enddo
+      
+      RETURN
+      END
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_locldr_newhf(icall,i1,i2)
+c
+c     Calculate relative distances for newHF algorithm
+c     Adapted from newHF locldr with modifications
 c
       implicit double precision (a-h, o-z)
       dimension ftp0(3),pxp0(3),pyp0(3),pzp0(3),pep0(3)
       common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
      1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
-      common /prtn23/ gxp0(3),gyp0(3),gzp0(3),ft0fom
+      common /prtn23/ gxp0(3),gyp0(3),gzp0(3),ft0fom,drlocl,drlot,
+     1     drlo1,drlo2,drlo3,drlo1t,drlo2t,drlo3t
+      common /lor/ enenew, pxnew, pynew, pznew
+      SAVE   
+      
+c     2-body distance calculation
+      if(icall.eq.2) then
+         etot=pep(i1)+pep(i2)
+         bex=(pxp(i1)+pxp(i2))/etot
+         bey=(pyp(i1)+pyp(i2))/etot
+         bez=(pzp(i1)+pzp(i2))/etot
+         
+c        Boost to pair rest frame
+         do j=1,2
+            if(j.eq.1) then
+               i=i1
+            else
+               i=i2
+            endif
+            call lorenz(ftp(i),gxp(i),gyp(i),gzp(i),bex,bey,bez)
+            gxp0(j)=pxnew
+            gyp0(j)=pynew
+            gzp0(j)=pznew
+            ftp0(j)=enenew
+         enddo
+         
+c        Calculate relative distance
+         if(ftp0(1).ge.ftp0(2)) then
+            ilate=1
+            iearly=2
+         else
+            ilate=2
+            iearly=1
+         endif
+         
+         dt0=ftp0(ilate)-ftp0(iearly)
+         gxp0(iearly)=gxp0(iearly)+pxp0(iearly)/pep0(iearly)*dt0
+         gyp0(iearly)=gyp0(iearly)+pyp0(iearly)/pep0(iearly)*dt0
+         gzp0(iearly)=gzp0(iearly)+pzp0(iearly)/pep0(iearly)*dt0
+         
+         drlocl_out=dsqrt((gxp0(ilate)-gxp0(iearly))**2
+     1        +(gyp0(ilate)-gyp0(iearly))**2
+     2        +(gzp0(ilate)-gzp0(iearly))**2)
+         
+c     3-body distance calculation         
+      elseif(icall.eq.3) then
+         etot=pep(1)+pep(2)+pep(3)
+         bex=(pxp(1)+pxp(2)+pxp(3))/etot
+         bey=(pyp(1)+pyp(2)+pyp(3))/etot
+         bez=(pzp(1)+pzp(2)+pzp(3))/etot
+         
+c        Boost to 3-parton rest frame
+         do j=1,3
+            call lorenz(ftp(j),gxp(j),gyp(j),gzp(j),bex,bey,bez)
+            gxp0(j)=pxnew
+            gyp0(j)=pynew
+            gzp0(j)=pznew
+            ftp0(j)=enenew
+            call lorenz(pep(j),pxp(j),pyp(j),pzp(j),bex,bey,bez)
+            pxp0(j)=pxnew
+            pyp0(j)=pynew
+            pzp0(j)=pznew
+            pep0(j)=enenew
+         enddo
+         
+c        Find latest time
+         ft0fom=max(ftp0(1),ftp0(2),ftp0(3))
+         
+c        Propagate all to latest time and calculate pairwise distances
+         do i=1,3
+            dt0=ft0fom-ftp0(i)
+            gxp0(i)=gxp0(i)+pxp0(i)/pep0(i)*dt0
+            gyp0(i)=gyp0(i)+pyp0(i)/pep0(i)*dt0
+            gzp0(i)=gzp0(i)+pzp0(i)/pep0(i)*dt0
+         enddo
+         
+         drlo1=dsqrt((gxp0(1)-gxp0(2))**2+(gyp0(1)-gyp0(2))**2
+     &              +(gzp0(1)-gzp0(2))**2)
+         drlo2=dsqrt((gxp0(1)-gxp0(3))**2+(gyp0(1)-gyp0(3))**2
+     &              +(gzp0(1)-gzp0(3))**2)
+         drlo3=dsqrt((gxp0(2)-gxp0(3))**2+(gyp0(2)-gyp0(3))**2
+     &              +(gzp0(2)-gzp0(3))**2)
+      endif
+      
+      RETURN
+      END
+
+c-----------------------------------------------------------------------
+c     Shared utility functions
+c-----------------------------------------------------------------------
+      SUBROUTINE CZCOAL_LOCLDR(icall,drlocl_out)
+c
+      implicit double precision (a-h, o-z)
+      dimension ftp0(3),pxp0(3),pyp0(3),pzp0(3),pep0(3)
+      common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
+     1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
+      common /prtn23/ gxp0(3),gyp0(3),gzp0(3),ft0fom,drlocl,drlot,
+     1     drlo1,drlo2,drlo3,drlo1t,drlo2t,drlo3t
       common /lor/ enenew, pxnew, pynew, pznew
       SAVE   
 c     for 2-body kinematics:
@@ -401,7 +924,7 @@ c
          gxp0(iearly)=gxp0(iearly)+pxp0(iearly)/pep0(iearly)*dt0
          gyp0(iearly)=gyp0(iearly)+pyp0(iearly)/pep0(iearly)*dt0
          gzp0(iearly)=gzp0(iearly)+pzp0(iearly)/pep0(iearly)*dt0
-         drlocl=dsqrt((gxp0(ilate)-gxp0(iearly))**2
+         drlocl_out=dsqrt((gxp0(ilate)-gxp0(iearly))**2
      1        +(gyp0(ilate)-gyp0(iearly))**2
      2        +(gzp0(ilate)-gzp0(iearly))**2)
 c     for 3-body kinematics, used for baryons formation:

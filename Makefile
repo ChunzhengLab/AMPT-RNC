@@ -28,3 +28,6 @@ linana.o: linana.f
 
 czcoal.o: czcoal.f
 	$(F77)  -c -O czcoal.f
+
+clean:
+	rm -f *.o ampt
