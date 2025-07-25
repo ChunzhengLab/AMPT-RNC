@@ -1054,9 +1054,13 @@ c
      &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
      &     XMASS5(MAXPTN), ITYP5(MAXPTN)
       COMMON /PARA1/ MUL
+      COMMON /HPARNT/HIPR1(100), IHPR2(50), HINT1(100), IHNT2(50)
       common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
      1     mesonBaryonRatio,icoal_method
-      SAVE
+      SAVE /HPARNT/
+
+c     Note: Energy conservation will be checked after coalescence
+      write(6,*) 'Note: Random coalescence may affect energy balance'
 
 c     Convert /SOFT/ format to /prec2/ format
       call czcoal_soft_to_prec2(nq, nqbar)
@@ -1076,6 +1080,9 @@ c     Perform random coalescence with meson/baryon ratio control
 c     No need to convert back - algorithm already writes to /SOFT/
 
       NSG=isg_final
+
+c     Random coalescence completed
+
       return
       end
 
@@ -1165,6 +1172,9 @@ c        Try to form hadron starting with this parton
  100     continue
       enddo
 
+c     Add remaining quarks as single-quark "hadrons"
+      call czcoal_add_remaining_quarks(IORDER, IUSED, isg)
+
       NSG = isg
       isg_final = isg
 
@@ -1178,6 +1188,37 @@ c     Print final statistics
       write(6,*) '  Final: mesons=',nmeson,', baryons=',nbaryon,
      1     ', antibaryons=',nantibaryon
       write(6,*) '  Total hadrons formed:',isg
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_add_remaining_quarks(IORDER, IUSED, isg)
+c
+c     Add remaining unused quarks back to /SOFT/ as single particles
+c
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      INTEGER IORDER(*), IUSED(*), isg, ITYP5
+      DOUBLE PRECISION GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      INTEGER K1SGS,K2SGS,NJSGS,NSG
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      SAVE
+
+c     Add each unused quark as a single-particle "hadron"
+      do i=1,MUL
+         if(IUSED(IORDER(i)).eq.0) then
+            isg = isg + 1
+            call czcoal_setPtoH(isg, 1, IORDER(i), 0, 0)
+         endif
+      enddo
 
       return
       end
@@ -1264,6 +1305,22 @@ c     1           ', ITYP5=',ITYP5(ip1)
          endif
       endif
 
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_get_method(icoal_method_out)
+c
+c     Get current coalescence method for external queries
+c
+      implicit double precision (a-h, o-z)
+      double precision dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
+      integer icoal_method,icoal_method_out
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
+      
+      icoal_method_out = icoal_method
+      
       return
       end
 

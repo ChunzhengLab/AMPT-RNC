@@ -2030,8 +2030,10 @@ clin-4/19/01 soft3:
  565    continue
 
         DENGY=EATT/(IHNT2(1)*HINT1(6)+IHNT2(3)*HINT1(7))-1.0
+c     Skip energy check for random coalescence method (icoal_method=3)
+        call czcoal_get_method(icoal_method_check)
         IF(ABS(DENGY).GT.HIPR1(43).AND.IHPR2(20).NE.0
-     &     .AND.IHPR2(21).EQ.0) THEN
+     &     .AND.IHPR2(21).EQ.0.AND.icoal_method_check.NE.3) THEN
          IF(IHPR2(10).NE.0) 
      &        WRITE(6,*) 'Energy not conserved, repeat the event'
 c                call lulist(1)

@@ -6,7 +6,7 @@ A               ! TARG
 79              ! IZP (projectile Z number)
 197             ! IAT (target A number)
 79              ! IZT (target Z number)
-10		! NEVNT (total number of events)
+1		! NEVNT (total number of events)
 0.              ! BMIN (mininum impact parameter in fm)
 3.		! BMAX (maximum impact parameter in fm, also see below)
 4		! ISOFT (D=4): select Default AMPT or String Melting(see below)
@@ -25,7 +25,7 @@ A               ! TARG
 0.33d0		! alpha in parton cascade (D=0.33d0), see parton screening mass
 1d6		! dpcoal in GeV
 1d6		! drcoal in fm
-3		! icoal_method: 1=classic, 2=BM_competition, 3=random
+2		! icoal_method: 1=classic, 2=BM_competition, 3=random
 0.53	! drbmRatio: B/M formation distance ratio
 0.5		! mesonBaryonRatio: meson/baryon ratio for random coalescence
 0		! ihjsed: take HIJING seed from below (D=0)or at runtime(11)
