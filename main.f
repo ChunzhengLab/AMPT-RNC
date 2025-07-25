@@ -3,7 +3,8 @@ c.....driver program for A Multi-Phase Transport model
 c
       PARAMETER (MAXSTR=150001)
       double precision xmp, xmu, alpha, rscut2, cutof2, dshadow
-      double precision smearp,smearh,dpcoal,drcoal,ecritl,drbmRatio
+      double precision smearp,smearh,dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio
       integer icoal_method
       CHARACTER FRAME*8, PROJ*8, TARG*8
       character*25 amptvn
@@ -26,7 +27,8 @@ c     reshuffle initial quark momentum (added 2024):
       COMMON/RNDF77/NSEED
       common/anim/nevent,isoft,isflag,izpc
 c     parton coalescence radii in case of string melting:
-      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
       common/snn/efrm,npart1,npart2,epsiPz,epsiPt,PZPROJ,PZTARG
 c     initialization value for parton cascade:
       common /para2/ xmp, xmu, alpha, rscut2, cutof2
@@ -100,11 +102,13 @@ c     quark coalescence radii in momentum and space for string melting:
 c     coalescence method and B/M ratio parameter:
       READ (24, *) icoal_method
       READ (24, *) drbmRatio
-c     write(6,*) 'DEBUG: Read icoal_method=',icoal_method,', drbmRatio=',drbmRatio
+      READ (24, *) mesonBaryonRatio
+      write(6,*) 'DEBUG: Read icoal_method=',icoal_method,
+     1     ', drbmRatio=',drbmRatio,', mesonBaryonRatio=',mesonBaryonRatio
 c     validate coalescence parameters:
-      if(icoal_method.lt.1.or.icoal_method.gt.2) then
+      if(icoal_method.lt.1.or.icoal_method.gt.3) then
          write(6,*) 'Invalid coalescence method:',icoal_method
-         write(6,*) 'Valid options: 1=classic, 2=BM_competition'
+         write(6,*) 'Valid: 1=classic, 2=BM_competition, 3=random'
          stop
       endif
       if(drbmRatio.lt.0.0.or.drbmRatio.gt.2.0) then

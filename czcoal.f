@@ -14,9 +14,10 @@ c-----------------------------------------------------------------------
       SUBROUTINE CZCOAL_MAIN()
 c
       implicit double precision (a-h, o-z)
-      double precision dpcoal,drcoal,ecritl,drbmRatio
+      double precision dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
       integer icoal_method
-      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
 
 c     write(6,*) 'CZCOAL_MAIN: using icoal_method=',icoal_method
 
@@ -24,9 +25,13 @@ c     write(6,*) 'CZCOAL_MAIN: using icoal_method=',icoal_method
          call czcoal_classic()
       elseif(icoal_method.eq.2) then
          call czcoal_bmcomp()
+      elseif(icoal_method.eq.3) then
+         write(6,*) 'Random coalescence method (not implemented)'
+         write(6,*) 'mesonBaryonRatio=',mesonBaryonRatio
+         call czcoal_classic()
       else
          write(6,*) 'Error: Invalid coalescence method',icoal_method
-         write(6,*) 'Valid options: 1=classic, 2=BM_competition'
+         write(6,*) 'Valid: 1=classic, 2=BM_competition, 3=random'
          stop
       endif
 
@@ -46,13 +51,14 @@ c
       DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
      1     GXSGS,GYSGS,GZSGS,FTSGS
       INTEGER  K1SGS,K2SGS,NJSGS
-      double precision  dpcoal,drcoal,ecritl,drbmRatio
+      double precision  dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
       integer icoal_method
       COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
      &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
      &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
      &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
-      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
       common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
      1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
       COMMON/HJJET2/NSG
@@ -304,7 +310,7 @@ c
       PARAMETER (MAXSTR=150001)
       implicit double precision (a-h, o-z)
       PARAMETER (MAXPTN=400001,drbig=1d9)
-      double precision  dpcoal,drcoal,ecritl,drbmRatio
+      double precision  dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
       integer icoal_method,nq,nqbar
       DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
      1     GXSGS,GYSGS,GZSGS,FTSGS
@@ -323,7 +329,8 @@ c
       COMMON /PARA1/ MUL
       common /loclco/gxp(3),gyp(3),gzp(3),ftp(3),
      1     pxp(3),pyp(3),pzp(3),pep(3),pmp(3)
-      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
       SAVE
 
 c     drbmRatio comes from common block (configurable)
@@ -460,7 +467,7 @@ c
       DOUBLE PRECISION  gxp,gyp,gzp,ftp,pxp,pyp,pzp,pep,pmp
       INTEGER  K1SGS,K2SGS,NJSGS,NSG,ITYP5
       DOUBLE PRECISION  GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
-      double precision  dpcoal,drcoal,ecritl,drbmRatio
+      double precision  dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
       double precision  gxp0,gyp0,gzp0,ft0fom,drlocl,drlot
       double precision  drlo1,drlo2,drlo3,drlo1t,drlo2t,drlo3t
       double precision  dr0,dr0m,dr0b1,drAvg,drAvg0,dp0,dplocl
@@ -480,7 +487,8 @@ c
       common /prtn23/ gxp0(3),gyp0(3),gzp0(3),ft0fom,drlocl,drlot,
      1     drlo1,drlo2,drlo3,drlo1t,drlo2t,drlo3t
       common /para7/ ioscar,nsmm0,nsmb0,nsmab0,nsmm1,nsmb1,nsmab1
-      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,icoal_method
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
       SAVE
 
 c     Initialize

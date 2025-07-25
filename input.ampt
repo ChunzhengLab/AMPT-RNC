@@ -25,8 +25,9 @@ A               ! TARG
 0.33d0		! alpha in parton cascade (D=0.33d0), see parton screening mass
 1d6		! dpcoal in GeV
 1d6		! drcoal in fm
-2		! icoal_method: 1=classic, 2=BM_competition
+3		! icoal_method: 1=classic, 2=BM_competition, 3=random
 0.53	! drbmRatio: B/M formation distance ratio
+0.5		! mesonBaryonRatio: meson/baryon ratio for random coalescence
 0		! ihjsed: take HIJING seed from below (D=0)or at runtime(11)
 13150909	! random seed for HIJING
 8		! random seed for parton cascade
