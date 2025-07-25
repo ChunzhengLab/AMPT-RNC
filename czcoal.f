@@ -26,9 +26,9 @@ c     write(6,*) 'CZCOAL_MAIN: using icoal_method=',icoal_method
       elseif(icoal_method.eq.2) then
          call czcoal_bmcomp()
       elseif(icoal_method.eq.3) then
-         write(6,*) 'Random coalescence method (not implemented)'
+         write(6,*) 'Random coalescence method'
          write(6,*) 'mesonBaryonRatio=',mesonBaryonRatio
-         call czcoal_classic()
+         call czcoal_random()
       else
          write(6,*) 'Error: Invalid coalescence method',icoal_method
          write(6,*) 'Valid: 1=classic, 2=BM_competition, 3=random'
@@ -1030,3 +1030,318 @@ c
 c
       RETURN
       END
+
+c-----------------------------------------------------------------------
+c     Method 3: Random coalescence (no distance criteria)
+c-----------------------------------------------------------------------
+      SUBROUTINE CZCOAL_RANDOM()
+c
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
+     1     GXSGS,GYSGS,GZSGS,FTSGS
+      INTEGER  K1SGS,K2SGS,NJSGS,NSG
+      double precision  dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
+      integer icoal_method
+      DOUBLE PRECISION  GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      INTEGER ITYP5, IORDER(MAXPTN), nq, nqbar
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
+      SAVE
+
+c     Convert /SOFT/ format to /prec2/ format
+      call czcoal_soft_to_prec2(nq, nqbar)
+
+      write(6,*) "Random coalescence: MUL=",MUL,", nq=",nq,", nqbar=",
+     1     nqbar
+      write(6,*) "  mesonBaryonRatio=",mesonBaryonRatio
+
+c     Randomly shuffle parton order
+      call czcoal_shuffle(IORDER, MUL)
+      write(6,*) 'DEBUG: Parton order shuffled'
+
+c     Perform random coalescence with meson/baryon ratio control
+      call czcoal_random_core(IORDER, nq, nqbar, isg_final)
+      write(6,*) 'DEBUG: Random coalescence core completed'
+
+c     No need to convert back - algorithm already writes to /SOFT/
+
+      NSG=isg_final
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_shuffle(IORDER, N)
+c
+c     Randomly shuffle parton indices using Fisher-Yates algorithm
+c
+      implicit double precision (a-h, o-z)
+      INTEGER IORDER(*), N, i, j, temp
+      real rand_temp
+      SAVE
+
+c     Initialize order array
+      do i=1,N
+         IORDER(i) = i
+      enddo
+
+c     Fisher-Yates shuffle
+      do i=N,2,-1
+         call random_number(rand_temp)
+         j = int(rand_temp*real(i)) + 1
+         if(j.gt.i) j = i
+         if(j.lt.1) j = 1
+         temp = IORDER(i)
+         IORDER(i) = IORDER(j)
+         IORDER(j) = temp
+      enddo
+c     write(6,*) 'DEBUG: Shuffled',N,'partons'
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_random_core(IORDER, nq_in, nqbar_in, isg_final)
+c
+c     Core random coalescence algorithm with meson/baryon ratio control
+c
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      INTEGER IORDER(*), IUSED(MAXPTN)
+      INTEGER K1SGS,K2SGS,NJSGS,NSG,ITYP5
+      DOUBLE PRECISION GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      double precision dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
+      integer icoal_method,nq,nqbar,nused,isg,nq_orig,nqbar_orig
+      integer nmeson,nbaryon,nantibaryon,isg_final,nq_in,nqbar_in
+      integer nq_used,nqbar_used
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
+      SAVE
+
+c     Initialize
+      do i=1,MUL
+         IUSED(i) = 0
+      enddo
+      nused = 0
+      isg = 0
+      nq = nq_in
+      nqbar = nqbar_in
+      nq_orig = nq
+      nqbar_orig = nqbar
+      nmeson = 0
+      nbaryon = 0
+      nantibaryon = 0
+
+c     Main coalescence loop - process in random order
+      do ip=1,MUL
+         if(IUSED(IORDER(ip)).eq.1) goto 100
+
+c        Mark first parton as used
+         IUSED(IORDER(ip)) = 1
+         nused = nused + 1
+
+c        Try to form hadron starting with this parton
+         call czcoal_form_hadron(IORDER(ip), IORDER, IUSED,
+     1        nused, isg, nmeson, nbaryon, nantibaryon, nq, nqbar)
+
+ 100     continue
+      enddo
+
+      NSG = isg
+      isg_final = isg
+
+c     Print final statistics
+      nq_used = nmeson + nbaryon*3
+      nqbar_used = nmeson + nantibaryon*3
+      write(6,*) 'Random coalescence results:'
+      write(6,*) '  Initial: nq=',nq_orig,', nqbar=',nqbar_orig
+      write(6,*) '  Used: nq=',nq_used,', nqbar=',nqbar_used
+      write(6,*) '  Remaining: nq=',nq,', nqbar=',nqbar
+      write(6,*) '  Final: mesons=',nmeson,', baryons=',nbaryon,
+     1     ', antibaryons=',nantibaryon
+      write(6,*) '  Total hadrons formed:',isg
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_form_hadron(ip1, IORDER, IUSED, nused, isg,
+     1     nmeson, nbaryon, nantibaryon, nq, nqbar)
+c
+c     Form hadron starting with parton ip1
+c
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      INTEGER IORDER(*), IUSED(*), ip1, ip2, ip3, nused, isg
+      INTEGER nmeson, nbaryon, nantibaryon, nq, nqbar
+      INTEGER ITYP5, K1SGS, K2SGS, NJSGS, NSG
+      DOUBLE PRECISION GX5, GY5, GZ5, FT5, PX5, PY5, PZ5, E5, XMASS5
+      double precision dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
+      double precision rand_val
+      integer icoal_method
+      logical found_partner
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
+     1     mesonBaryonRatio,icoal_method
+      SAVE
+
+c     Decide meson vs baryon based on mesonBaryonRatio
+c     Use a simple alternative random number generator for testing
+      call random_number(rand_val)
+c      if(ip1.le.10) then
+c         write(6,*) 'DEBUG: parton',ip1,', rand=',rand_val,
+c     1        ', ratio=',mesonBaryonRatio,', type=',ITYP5(ip1)
+c      endif
+      if(rand_val.lt.mesonBaryonRatio) then
+c        Try to form meson
+         call czcoal_find_meson_partner(ip1, IORDER, IUSED,
+     1        ip2, found_partner)
+         if(found_partner) then
+            IUSED(ip2) = 1
+            nused = nused + 1
+            isg = isg + 1
+            call czcoal_setPtoH(isg, 2, ip1, ip2, 0)
+            nmeson = nmeson + 1
+c           Update quark counts for meson formation
+            nq = nq - 1
+            nqbar = nqbar - 1
+c            if(mod(nmeson,1000).eq.0) then
+c               write(6,*) 'DEBUG: Formed',nmeson,'mesons so far'
+c            endif
+         else
+c            write(6,*) 'DEBUG: No meson partner found for parton',ip1,
+c     1           ', ITYP5=',ITYP5(ip1)
+         endif
+      else
+c        Try to form baryon
+         call czcoal_find_baryon_partners(ip1, IORDER, IUSED,
+     1        ip2, ip3, found_partner)
+         if(found_partner) then
+            IUSED(ip2) = 1
+            IUSED(ip3) = 1
+            nused = nused + 2
+            isg = isg + 1
+            call czcoal_setPtoH(isg, 3, ip1, ip2, ip3)
+c           Count baryon or antibaryon based on first parton type
+            if(ITYP5(ip1).gt.0) then
+               nbaryon = nbaryon + 1
+               nq = nq - 3
+            else
+               nantibaryon = nantibaryon + 1
+               nqbar = nqbar - 3
+            endif
+c            write(6,*) 'DEBUG: Formed baryon',isg,' from partons',
+c     1           ip1,ip2,ip3,', types:',ITYP5(ip1),ITYP5(ip2),ITYP5(ip3)
+         else
+c            write(6,*) 'DEBUG: No baryon partners found for parton',ip1,
+c     1           ', ITYP5=',ITYP5(ip1)
+         endif
+      endif
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_find_meson_partner(ip1, IORDER, IUSED,
+     1     ip2, found_partner)
+c
+c     Find partner for meson formation
+c
+      PARAMETER (MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      INTEGER IORDER(*), IUSED(*), ip1, ip2, ITYP5
+      logical found_partner
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      SAVE
+
+      found_partner = .false.
+      ip2 = 0
+
+c     Look for opposite charge partner in random order
+      do i=1,MUL
+         if(IUSED(IORDER(i)).eq.1) goto 10
+         if(IORDER(i).eq.ip1) goto 10
+
+c        Check if opposite charge (meson condition)
+         if((ITYP5(ip1)*ITYP5(IORDER(i))).lt.0) then
+            ip2 = IORDER(i)
+            found_partner = .true.
+            return
+         endif
+
+ 10      continue
+      enddo
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_find_baryon_partners(ip1, IORDER, IUSED,
+     1     ip2, ip3, found_partner)
+c
+c     Find two partners for baryon formation
+c
+      PARAMETER (MAXPTN=400001)
+      implicit double precision (a-h, o-z)
+      INTEGER IORDER(*), IUSED(*), ip1, ip2, ip3, ITYP5
+      logical found_partner
+      COMMON /prec2/GX5(MAXPTN),GY5(MAXPTN),GZ5(MAXPTN),FT5(MAXPTN),
+     &     PX5(MAXPTN), PY5(MAXPTN), PZ5(MAXPTN), E5(MAXPTN),
+     &     XMASS5(MAXPTN), ITYP5(MAXPTN)
+      COMMON /PARA1/ MUL
+      SAVE
+
+      found_partner = .false.
+      ip2 = 0
+      ip3 = 0
+
+c     Look for two same-charge partners
+      do i=1,MUL
+         if(IUSED(IORDER(i)).eq.1) goto 20
+         if(IORDER(i).eq.ip1) goto 20
+
+c        Check if same charge (baryon condition)
+         if((ITYP5(ip1)*ITYP5(IORDER(i))).gt.0) then
+            if(ip2.eq.0) then
+               ip2 = IORDER(i)
+            else
+               ip3 = IORDER(i)
+               found_partner = .true.
+               return
+            endif
+         endif
+
+ 20      continue
+      enddo
+
+      return
+      end
