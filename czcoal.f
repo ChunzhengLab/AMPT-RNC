@@ -14,26 +14,64 @@ c-----------------------------------------------------------------------
       SUBROUTINE CZCOAL_MAIN()
 c
       implicit double precision (a-h, o-z)
+      PARAMETER (MAXSTR=150001, MAXPTN=400001)
       double precision dpcoal,drcoal,ecritl,drbmRatio,mesonBaryonRatio
-      integer icoal_method
+      integer icoal_method,nq_init,nqbar_init,nq_final,nqbar_final
+      integer nmeson,nbaryon,nantibaryon,NSG
+      INTEGER  K1SGS,K2SGS,NJSGS
+      DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
+     1     GXSGS,GYSGS,GZSGS,FTSGS
       common /czcoal_params/dpcoal,drcoal,ecritl,drbmRatio,
      1     mesonBaryonRatio,icoal_method
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG
+      character*20 method_name
 
-c     write(6,*) 'CZCOAL_MAIN: using icoal_method=',icoal_method
+c     Count initial quarks and antiquarks
+      call czcoal_count_initial(nq_init,nqbar_init)
 
+c     Set method name for output
       if(icoal_method.eq.1) then
-         call czcoal_classic()
+         method_name = 'Classic'
       elseif(icoal_method.eq.2) then
-         call czcoal_bmcomp()
+         method_name = 'B/M Competition'
       elseif(icoal_method.eq.3) then
-         write(6,*) 'Random coalescence method'
-         write(6,*) 'mesonBaryonRatio=',mesonBaryonRatio
-         call czcoal_random()
+         method_name = 'Random'
       else
          write(6,*) 'Error: Invalid coalescence method',icoal_method
          write(6,*) 'Valid: 1=classic, 2=BM_competition, 3=random'
          stop
       endif
+
+c     Print initial state
+      write(6,*) 
+      write(6,'(A,A20)') ' === Coalescence Method: ',method_name
+      write(6,'(A,I6,A,I6)') ' Initial state: nq=',nq_init,
+     &     ', nqbar=',nqbar_init
+
+c     Call appropriate coalescence method
+      if(icoal_method.eq.1) then
+         call czcoal_classic()
+      elseif(icoal_method.eq.2) then
+         call czcoal_bmcomp()
+      elseif(icoal_method.eq.3) then
+         call czcoal_random()
+      endif
+
+c     Count final state
+      call czcoal_count_final(nq_final,nqbar_final,
+     &     nmeson,nbaryon,nantibaryon)
+
+c     Print unified output
+      write(6,'(A,I5,A,I5,A,I5)') ' Hadrons formed: mesons=',nmeson,
+     &     ', baryons=',nbaryon,', antibaryons=',nantibaryon
+      write(6,'(A,I6,A,I6)') ' Remaining: nq=',nq_final,
+     &     ', nqbar=',nqbar_final
+      write(6,*) ' ================================='
+      write(6,*)
 
       return
       end
@@ -338,8 +376,7 @@ c     drbmRatio comes from common block (configurable)
 c     Convert /SOFT/ data to /prec2/ format
       call czcoal_soft_to_prec2(nq, nqbar)
 
-      write(6,*) 'B/M competition: MUL=',MUL,', nq=',nq,', nqbar=',nqbar
-      write(6,*) '  drbmRatio=',drbmRatio
+c     Removed: individual method output now handled in CZCOAL_MAIN
 
 c     Call B/M competition coalescence algorithm
       call czcoal_bmcomp_core(nq, nqbar)
@@ -689,8 +726,7 @@ c              Debug check for antibaryon formation
  350  continue
 
       NSG=isg
-      write(6,*) 'B/M competition done: nsmm1=',nsmm1,', nsmb1=',nsmb1,
-     &           ', nsmab1=',nsmab1
+c     Removed: individual method output now handled in CZCOAL_MAIN
 
       RETURN
       END
@@ -1038,6 +1074,7 @@ c-----------------------------------------------------------------------
 c
       PARAMETER (MAXSTR=150001, MAXPTN=400001)
       implicit double precision (a-h, o-z)
+      REAL HIPR1, HINT1
       DOUBLE PRECISION  PXSGS,PYSGS,PZSGS,PESGS,PMSGS,
      1     GXSGS,GYSGS,GZSGS,FTSGS
       INTEGER  K1SGS,K2SGS,NJSGS,NSG
@@ -1060,22 +1097,16 @@ c
       SAVE /HPARNT/
 
 c     Note: Energy conservation will be checked after coalescence
-      write(6,*) 'Note: Random coalescence may affect energy balance'
+c     Removed: individual method output now handled in CZCOAL_MAIN
 
 c     Convert /SOFT/ format to /prec2/ format
       call czcoal_soft_to_prec2(nq, nqbar)
 
-      write(6,*) "Random coalescence: MUL=",MUL,", nq=",nq,", nqbar=",
-     1     nqbar
-      write(6,*) "  mesonBaryonRatio=",mesonBaryonRatio
-
 c     Randomly shuffle parton order
       call czcoal_shuffle(IORDER, MUL)
-      write(6,*) 'DEBUG: Parton order shuffled'
 
 c     Perform random coalescence with meson/baryon ratio control
       call czcoal_random_core(IORDER, nq, nqbar, isg_final)
-      write(6,*) 'DEBUG: Random coalescence core completed'
 
 c     No need to convert back - algorithm already writes to /SOFT/
 
@@ -1178,16 +1209,9 @@ c     Add remaining quarks as single-quark "hadrons"
       NSG = isg
       isg_final = isg
 
-c     Print final statistics
+c     Removed: individual method output now handled in CZCOAL_MAIN
       nq_used = nmeson + nbaryon*3
       nqbar_used = nmeson + nantibaryon*3
-      write(6,*) 'Random coalescence results:'
-      write(6,*) '  Initial: nq=',nq_orig,', nqbar=',nqbar_orig
-      write(6,*) '  Used: nq=',nq_used,', nqbar=',nqbar_used
-      write(6,*) '  Remaining: nq=',nq,', nqbar=',nqbar
-      write(6,*) '  Final: mesons=',nmeson,', baryons=',nbaryon,
-     1     ', antibaryons=',nantibaryon
-      write(6,*) '  Total hadrons formed:',isg
 
       return
       end
@@ -1255,10 +1279,7 @@ c
 c     Decide meson vs baryon based on mesonBaryonRatio
 c     Use a simple alternative random number generator for testing
       call random_number(rand_val)
-c      if(ip1.le.10) then
-c         write(6,*) 'DEBUG: parton',ip1,', rand=',rand_val,
-c     1        ', ratio=',mesonBaryonRatio,', type=',ITYP5(ip1)
-c      endif
+c      DEBUG output removed: parton decision logging
       if(rand_val.lt.mesonBaryonRatio) then
 c        Try to form meson
          call czcoal_find_meson_partner(ip1, IORDER, IUSED,
@@ -1276,8 +1297,7 @@ c            if(mod(nmeson,1000).eq.0) then
 c               write(6,*) 'DEBUG: Formed',nmeson,'mesons so far'
 c            endif
          else
-c            write(6,*) 'DEBUG: No meson partner found for parton',ip1,
-c     1           ', ITYP5=',ITYP5(ip1)
+c            DEBUG output removed: No meson partner found for parton
          endif
       else
 c        Try to form baryon
@@ -1297,11 +1317,9 @@ c           Count baryon or antibaryon based on first parton type
                nantibaryon = nantibaryon + 1
                nqbar = nqbar - 3
             endif
-c            write(6,*) 'DEBUG: Formed baryon',isg,' from partons',
-c     1           ip1,ip2,ip3,', types:',ITYP5(ip1),ITYP5(ip2),ITYP5(ip3)
+c            DEBUG output removed: Formed baryon
          else
-c            write(6,*) 'DEBUG: No baryon partners found for parton',ip1,
-c     1           ', ITYP5=',ITYP5(ip1)
+c            DEBUG output removed: No baryon partners found
          endif
       endif
 
@@ -1321,6 +1339,86 @@ c
       
       icoal_method_out = icoal_method
       
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_count_initial(nq_init,nqbar_init)
+c
+c     Count initial quarks and antiquarks before coalescence
+c
+      PARAMETER (MAXSTR=150001)
+      implicit double precision (a-h, o-z)
+      INTEGER  K1SGS,K2SGS,NJSGS,NSG
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG
+      SAVE
+
+      nq_init = 0
+      nqbar_init = 0
+
+      do isg=1,NSG
+         if(NJSGS(isg).eq.0) cycle
+         do ip=1,NJSGS(isg)
+            if(K2SGS(isg,ip).gt.0) then
+               nq_init = nq_init + 1
+            else
+               nqbar_init = nqbar_init + 1
+            endif
+         enddo
+      enddo
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      SUBROUTINE czcoal_count_final(nq_final,nqbar_final,
+     &     nmeson,nbaryon,nantibaryon)
+c
+c     Count final state after coalescence
+c
+      PARAMETER (MAXSTR=150001)
+      implicit double precision (a-h, o-z)
+      INTEGER  K1SGS,K2SGS,NJSGS,NSG
+      COMMON/SOFT/PXSGS(MAXSTR,3),PYSGS(MAXSTR,3),PZSGS(MAXSTR,3),
+     &     PESGS(MAXSTR,3),PMSGS(MAXSTR,3),GXSGS(MAXSTR,3),
+     &     GYSGS(MAXSTR,3),GZSGS(MAXSTR,3),FTSGS(MAXSTR,3),
+     &     K1SGS(MAXSTR,3),K2SGS(MAXSTR,3),NJSGS(MAXSTR)
+      COMMON/HJJET2/NSG
+      SAVE
+
+      nq_final = 0
+      nqbar_final = 0
+      nmeson = 0
+      nbaryon = 0
+      nantibaryon = 0
+
+      do isg=1,NSG
+         if(NJSGS(isg).eq.0) cycle
+         
+         if(NJSGS(isg).eq.1) then
+c           Single parton (not coalesced)
+            if(K2SGS(isg,1).gt.0) then
+               nq_final = nq_final + 1
+            else
+               nqbar_final = nqbar_final + 1
+            endif
+         elseif(NJSGS(isg).eq.2) then
+c           Meson
+            nmeson = nmeson + 1
+         elseif(NJSGS(isg).eq.3) then
+c           Baryon or antibaryon
+            if(K2SGS(isg,1).gt.0) then
+               nbaryon = nbaryon + 1
+            else
+               nantibaryon = nantibaryon + 1
+            endif
+         endif
+      enddo
+
       return
       end
 
