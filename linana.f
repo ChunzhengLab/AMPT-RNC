@@ -184,8 +184,12 @@ c     1 NELP,NINP,NELT,NINTHJ
 clin-2/2012:
 c         write(16,190) IAEVT,IARUN,nlast-ndpert,bimp,npart1,npart2,
 c     1 NELP,NINP,NELT,NINTHJ
+c        Write to dat file (traditional output)
          write(16,191) IAEVT,IARUN,nlast-ndpert,bimp,npart1,npart2,
      1 NELP,NINP,NELT,NINTHJ,phiRP
+c        Write to ROOT file (online conversion)
+         call WRITE_AMPT_EVENT_HEADER(IAEVT,IARUN,nlast-ndpert,bimp,
+     1 npart1,npart2,NELP,NINP,NELT,NINTHJ,phiRP)
 clin-5/2008 write out perturbatively-produced particles (deuterons only):
          if(idpert.eq.1.or.idpert.eq.2)
      1        write(90,190) IAEVT,IARUN,ndpert,bimp,npart1,npart2,
@@ -213,10 +217,15 @@ c     these two sets of deuteron data are close to each other(but not the same
 c     because of the bias from triggering the perturbative production); 
 c     ONLY use one data set for analysis to avoid double-counting:
                if(dplast(ip).gt.oneminus.and.dplast(ip).lt.oneplus) then
+c                 Write to dat file
                   write(16,200) INVFLV(lblast(ip)), plast(1,ip),
      1                 plast(2,ip),plast(3,ip),plast(4,ip),
      2                 xlast(1,ip),xlast(2,ip),xlast(3,ip),
      3                 xlast(4,ip)
+c                 Write to ROOT file
+                  call WRITE_AMPT_PARTICLE(INVFLV(lblast(ip)),
+     1                 plast(1,ip),plast(2,ip),plast(3,ip),plast(4,ip),
+     2                 xlast(1,ip),xlast(2,ip),xlast(3,ip),xlast(4,ip))
 clin-12/14/03-end
                else
                   if(idpert.eq.1.or.idpert.eq.2) then
@@ -231,9 +240,14 @@ clin-12/14/03-end
             elseif(amax1(abs(xlast(1,ip)),abs(xlast(2,ip)),
      1              abs(xlast(3,ip)),abs(xlast(4,ip))).lt.9999) then
                if(dplast(ip).gt.oneminus.and.dplast(ip).lt.oneplus) then
+c           Write to dat file
             write(16,200) INVFLV(lblast(ip)), plast(1,ip),
      1           plast(2,ip),plast(3,ip),plast(4,ip),
      2           xlast(1,ip),xlast(2,ip),xlast(3,ip),xlast(4,ip)
+c           Write to ROOT file
+            call WRITE_AMPT_PARTICLE(INVFLV(lblast(ip)),
+     1           plast(1,ip),plast(2,ip),plast(3,ip),plast(4,ip),
+     2           xlast(1,ip),xlast(2,ip),xlast(3,ip),xlast(4,ip))
                else
                   if(idpert.eq.1.or.idpert.eq.2) then
             write(90,250) INVFLV(lblast(ip)),plast(1,ip),
@@ -247,9 +261,14 @@ clin-12/14/03-end
             else
 c     change format for large numbers:
                if(dplast(ip).gt.oneminus.and.dplast(ip).lt.oneplus) then
+c           Write to dat file
             write(16,201) INVFLV(lblast(ip)), plast(1,ip),
      1           plast(2,ip),plast(3,ip),plast(4,ip),
      2           xlast(1,ip),xlast(2,ip),xlast(3,ip),xlast(4,ip)
+c           Write to ROOT file
+            call WRITE_AMPT_PARTICLE(INVFLV(lblast(ip)),
+     1           plast(1,ip),plast(2,ip),plast(3,ip),plast(4,ip),
+     2           xlast(1,ip),xlast(2,ip),xlast(3,ip),xlast(4,ip))
                else
                   if(idpert.eq.1.or.idpert.eq.2) then
                      write(90,251) INVFLV(lblast(ip)), plast(1,ip),

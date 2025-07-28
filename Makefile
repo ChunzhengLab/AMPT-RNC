@@ -1,33 +1,52 @@
-OBJ=main.o amptsub.o art1f.o \
-hijing1.383_ampt.o hipyset1.35.o zpc.o linana.o czcoal.o
-F77=gfortran
+# Makefile for AMPT with ROOT interface
+# Usage: make -f Makefile.simple
 
-ampt: $(OBJ)
-	$(F77) -o ampt -O $(OBJ)
+# ROOT configuration
+ROOTCONFIG = root-config
+ROOTCFLAGS = $(shell $(ROOTCONFIG) --cflags)
+ROOTLIBS = $(shell $(ROOTCONFIG) --libs)
 
-main.o: main.f
-	$(F77)  -c -O main.f
+# Compiler settings
+CXX = g++
+FC = gfortran
+CXXFLAGS = -O2 -Wall -fPIC $(ROOTCFLAGS)
+FCFLAGS = -O2 -fdefault-real-8 -fdefault-double-8
 
-amptsub.o: amptsub.f
-	$(F77)  -c -O amptsub.f
+# Find gfortran library path
+GFORTRAN_LIB = $(shell gfortran -print-file-name=libgfortran.dylib | xargs dirname)
 
-art1f.o: art1f.f
-	$(F77)  -c -O art1f.f
+# Source files
+FSRC = main.f amptsub.f linana.f zpc.f art1f.f hijing1.383_ampt.f hipyset1.35.f czcoal.f
+CXXSRC = root_interface.cpp
 
-hijing1.383_ampt.o: hijing1.383_ampt.f
-	$(F77)  -c -O hijing1.383_ampt.f
+# Object files
+FOBJ = $(FSRC:.f=.o)
+CXXOBJ = $(CXXSRC:.cpp=.o)
 
-hipyset1.35.o: hipyset1.35.f
-	$(F77)  -c -O hipyset1.35.f
+# Target executable
+TARGET = ampt
 
-zpc.o: zpc.f
-	$(F77)  -c -O zpc.f
+# Default target
+all: $(TARGET)
 
-linana.o: linana.f
-	$(F77)  -c -O linana.f
+# Build target with ROOT support
+$(TARGET): $(FOBJ) $(CXXOBJ)
+	$(CXX) -o $@ $(FOBJ) $(CXXOBJ) $(ROOTLIBS) -L$(GFORTRAN_LIB) -lgfortran
 
-czcoal.o: czcoal.f
-	$(F77)  -c -O czcoal.f
+# Fortran object files
+%.o: %.f
+	$(FC) $(FCFLAGS) -c $< -o $@
 
+# C++ object files
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Clean
 clean:
-	rm -f *.o ampt
+	rm -f *.o $(TARGET)
+
+# Clean all including ROOT files
+clean-all: clean
+	rm -f ana/*.root
+
+.PHONY: all clean clean-all

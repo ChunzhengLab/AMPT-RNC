@@ -16,6 +16,7 @@ exec
 ana/*.dat
 ana/*.txt
 ana/*.res
+ana/*.root
 ana/version
 nohup.out
 
@@ -54,6 +55,8 @@ temp/
 output/
 results/
 data/
+newHF*/
+
 
 # Keep the ana directory structure but ignore data files
 !ana/
