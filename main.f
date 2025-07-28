@@ -303,7 +303,7 @@ c          CALL HJANA4
           CALL ARTAN2
  2000  CONTINUE
 c
-       CALL ARTOUT(NEVNT)
+c       CALL ARTOUT(NEVNT)
 clin-5/2009 ctest off:
 c       call flowh0(NEVNT,2)
 c       call flowp(2)

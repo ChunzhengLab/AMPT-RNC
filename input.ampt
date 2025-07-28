@@ -34,7 +34,7 @@ A               ! TARG
 0		! flag for K0s weak decays (D=0,no; 1,yes)
 1		! flag for phi decays at end of hadron cascade (D=1,yes; 0,no)
 0		! flag for pi0 decays at end of hadron cascade (D=0,no; 1,yes)
-0		! optional OSCAR output (D=0,no; 1,yes; 2&3,more parton info)
+2		! optional OSCAR output (D=0,no; 1,yes; 2&3,more parton info)
 0		! flag for perturbative deuteron calculation (D=0,no; 1or2,yes)
 1		! integer factor for perturbative deuterons(>=1 & <=10000)
 1		! choice of cross section assumptions for deuteron reactions
