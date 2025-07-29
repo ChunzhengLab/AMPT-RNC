@@ -5,7 +5,7 @@
 # 在提交HTCondor作业前运行此脚本，确保所有程序已编译
 # ==============================================================================
 
-PROJECT_DIR="${PROJECT_DIR:-/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b}"
+PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 
 # 颜色定义
 RED='\033[0;31m'

@@ -9,7 +9,7 @@
 #   ./test_local.sh --analysis-only  # 同上
 # ==============================================================================
 
-PROJECT_DIR="${PROJECT_DIR:-/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b}"
+PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 cd "$PROJECT_DIR"
 
 # 颜色定义

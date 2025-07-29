@@ -4,7 +4,7 @@
 # AMPT Condor作业监控和管理脚本
 # ==============================================================================
 
-PROJECT_DIR="${PROJECT_DIR:-/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b}"
+PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 JOBS_DIR="$PROJECT_DIR/condor_jobs"
 
 # 颜色定义
@@ -32,15 +32,12 @@ AMPT Condor作业监控和管理工具
   watch               实时监控作业状态
   summary             生成完整的作业摘要报告
 
-MODE选项 (用于submit):
-  all                 提交所有21个参数组合
-  quick               快速测试 (6个关键组合)
-  reshuffle           只测试打乱效应 (7个)
-  coalescence         只测试聚合方式 (3个)
+参数选项 (用于submit):
+  N                   每个参数组合的重复次数 (默认1)
 
 示例:
   $0 status                    # 查看作业状态
-  $0 submit quick              # 提交快速测试作业
+  $0 submit 200                # 提交作业(每个参数组合200个重复)
   $0 logs 5                    # 查看作业5的日志
   $0 results                   # 查看结果统计
 EOF
@@ -196,14 +193,14 @@ submit_jobs() {
     
     # 生成参数文件
     if [ "$mode" != "default" ]; then
-        echo "生成${mode}模式的参数文件..."
+        echo "生成参数文件（重复${mode}次）..."
         python3 scripts/generate_jobs.py "$mode"
     fi
     
     # 检查参数文件
     if [ ! -f "config/job_params.txt" ]; then
         echo -e "${RED}错误: 参数文件 config/job_params.txt 不存在${NC}"
-        echo "请先运行: python3 scripts/generate_jobs.py all"
+        echo "请先运行: python3 scripts/generate_jobs.py"
         exit 1
     fi
     

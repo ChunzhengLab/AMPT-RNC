@@ -10,7 +10,7 @@
 echo "=== AMPT JOB STARTED [$(date)] ==="
 
 # 设置项目根目录
-PROJECT_DIR="${PROJECT_DIR:-/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b}"
+PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 cd "$PROJECT_DIR" || exit 1
 
 # 检查ROOT环境 (通常系统自带或通过module加载)
@@ -36,7 +36,7 @@ ICOAL_METHOD=$3
 
 # 固定参数 - ALICE LHC设置
 ENERGY=5020
-NEVNT=500
+NEVNT=200
 BMIN=7.65
 BMAX=8.83
 ISOFT=4
@@ -200,14 +200,15 @@ if [ -d "ana" ]; then
         fi
     done
     
-    # 移动关键的ASCII文件  
-    for file in ana/ampt.dat ana/zpc.dat; do
-        if [ -f "$file" ]; then
-            filename=$(basename "$file" .dat)
-            mv "$file" "$RESULTS_DIR/${filename}_job${JOB_ID}.dat"
-            echo "输出: $RESULTS_DIR/${filename}_job${JOB_ID}.dat"
-        fi
-    done
+    # 移动input配置文件
+    if [ -f "input.ampt" ]; then
+        cp "input.ampt" "$RESULTS_DIR/input_job${JOB_ID}.ampt"
+        echo "输出: $RESULTS_DIR/input_job${JOB_ID}.ampt"
+    fi
+    
+    # 清理ana目录中的其他文件（保留ROOT文件和input文件）
+    echo "清理临时文件..."
+    rm -f ana/*.dat ana/*.res ana/npart-xy.dat ana/version ana/*processes.dat ana/*before*.dat ana/*.tmp
     
     # 创建作业摘要
     cat > "$RESULTS_DIR/job_${JOB_ID}_summary.txt" << EOF
@@ -220,9 +221,14 @@ AMPT作业摘要
   聚合方式: $ICOAL_METHOD
   能量: $ENERGY GeV
   事件数: $NEVNT
-  撞击参数: $BMIN - $BMAX fm
+  撞击参数: $BMIN - $BMAX fm (30-40%中心度)
   模式: $ISOFT
   随机种子: HIJING=$HIJING_SEED, ZPC=$ZPC_SEED
+
+保留文件类型:
+  - ROOT数据文件 (原始 + 分析)
+  - input配置文件
+  - 作业摘要文件
 
 输出文件:
 $(ls -la $RESULTS_DIR/*job${JOB_ID}* 2>/dev/null || echo "无输出文件")

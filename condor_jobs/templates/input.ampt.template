@@ -27,7 +27,7 @@ A               ! TARG
 1d6		! drcoal in fm
 {ICOAL_METHOD}		! icoal_method: 1=classic, 2=BM_competition, 3=random
 0.53	! drbmRatio: B/M formation distance ratio
-0.5		! mesonBaryonRatio: meson/baryon ratio for random coalescence
+4		! mesonBaryonRatio: meson/baryon ratio for random coalescence
 0		! ihjsed: take HIJING seed from below (D=0)or at runtime(11)
 {HIJING_SEED}	! random seed for HIJING
 {ZPC_SEED}		! random seed for parton cascade

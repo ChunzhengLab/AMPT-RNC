@@ -4,7 +4,7 @@
 # 结果文件整理脚本 - 按参数组合分组
 # ==============================================================================
 
-PROJECT_DIR="${PROJECT_DIR:-/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b}"
+PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 RESULTS_DIR="$PROJECT_DIR/condor_jobs/outputs/results"
 ORGANIZED_DIR="$PROJECT_DIR/condor_jobs/outputs/organized"
 
@@ -92,7 +92,7 @@ for param_dir in "$ORGANIZED_DIR"/ISHLF_*; do
         esac
         
         echo "  $param_name: $job_count个作业, $file_count个ROOT文件"
-        echo "    └─ $ishlf_desc + $icoal_desc (总计 $((job_count * 500)) 个事件)"
+        echo "    └─ $ishlf_desc + $icoal_desc (总计 $((job_count * 200)) 个事件)"
     fi
 done
 

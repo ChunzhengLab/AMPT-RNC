@@ -4,7 +4,7 @@
 # AMPT Condor提交系统测试脚本
 # ==============================================================================
 
-PROJECT_DIR="${PROJECT_DIR:-/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b}"
+PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 JOBS_DIR="$PROJECT_DIR/condor_jobs"
 
 # 颜色定义
@@ -278,8 +278,8 @@ echo
 echo "使用指南:"
 echo "1. 生成参数文件:"
 echo "   cd condor_jobs"
-echo "   python3 scripts/generate_jobs.py quick    # 6个快速测试作业"
-echo "   python3 scripts/generate_jobs.py all      # 21个完整作业"
+echo "   python3 scripts/generate_jobs.py             # 6个参数组合，每个1个重复(1200个事件总计)"
+echo "   python3 scripts/generate_jobs.py 500         # 6个参数组合，每个500个重复(100k事件/参数)"
 echo
 echo "2. 提交作业:"
 echo "   condor_submit ampt.sub"
