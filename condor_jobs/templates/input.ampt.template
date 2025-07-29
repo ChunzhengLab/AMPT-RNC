@@ -1,22 +1,15 @@
-! AMPT输入参数模板文件 - 用于condor_jobs/run_ampt.sh脚本模板替换
-! 注意：所有注释必须使用!开头，Fortran不认识#注释
-! === 碰撞系统参数 ===
-{ENERGY}        ! EFRM (sqrt(S_NN) in GeV if FRAME is CMS) - 例如: 5020 for ALICE LHC
+{ENERGY}            ! EFRM (sqrt(S_NN) in GeV if FRAME is CMS)
 CMS             ! FRAME
 A               ! PROJ
 A               ! TARG
-{IAP}           ! IAP (projectile A number) - 例如: 208 for Pb, 197 for Au  
-{IZP}           ! IZP (projectile Z number) - 例如: 82 for Pb, 79 for Au
-{IAT}           ! IAT (target A number) - 例如: 208 for Pb, 197 for Au
-{IZT}           ! IZT (target Z number) - 例如: 82 for Pb, 79 for Au
-
-! === 事件参数 ===
-{NEVNT}         ! NEVNT (total number of events) - 例如: 500
-{BMIN}          ! BMIN (minimum impact parameter in fm) - 例如: 0.0
-{BMAX}          ! BMAX (maximum impact parameter in fm) - 例如: 20.0 for central+peripheral
-
-! === 物理模型设置 ===
-{ISOFT}         ! ISOFT (4=String Melting, 1=Default AMPT)
+{IAP}             ! IAP (projectile A number)
+{IZP}              ! IZP (projectile Z number)
+{IAT}             ! IAT (target A number)
+{IZT}              ! IZT (target Z number)
+{NEVNT}		! NEVNT (total number of events)
+{BMIN}              ! BMIN (mininum impact parameter in fm)
+{BMAX}		! BMAX (maximum impact parameter in fm, also see below)
+{ISOFT}		! ISOFT (D=4): select Default AMPT or String Melting(see below)
 150             ! NTMAX: number of timesteps (D=150), see below
 0.2             ! DT: timestep in fm (hadron cascade time= DT*NTMAX) (D=0.2)
 0.55            ! PARJ(41): parameter a in Lund symmetric splitting function
@@ -29,19 +22,15 @@ A               ! TARG
 2.0             ! p0 cutoff in HIJING for minijet productions (D=2.0)
 2.265d0         ! parton screening mass in fm^(-1) (D=2.265d0), see below
 0               ! IZPC: (D=0 forward-angle parton scatterings; 100,isotropic)
-0.33d0          ! alpha in parton cascade (D=0.33d0), see parton screening mass
-
-! === 聚合参数 ===
-1d6             ! dpcoal in GeV
-1d6             ! drcoal in fm
-{ICOAL_METHOD}  ! icoal_method: 1=classic, 2=BM_competition, 3=random
-0.53            ! drbmRatio: B/M formation distance ratio
-0.5             ! mesonBaryonRatio: meson/baryon ratio for random coalescence
-
-! === 随机种子 ===
-0               ! ihjsed: take HIJING seed from below (D=0)or at runtime(11)
-{HIJING_SEED}   ! random seed for HIJING - 例如: 13150909
-{ZPC_SEED}      ! random seed for parton cascade - 例如: 8
+0.33d0		! alpha in parton cascade (D=0.33d0), see parton screening mass
+1d6		! dpcoal in GeV
+1d6		! drcoal in fm
+{ICOAL_METHOD}		! icoal_method: 1=classic, 2=BM_competition, 3=random
+0.53	! drbmRatio: B/M formation distance ratio
+0.5		! mesonBaryonRatio: meson/baryon ratio for random coalescence
+0		! ihjsed: take HIJING seed from below (D=0)or at runtime(11)
+{HIJING_SEED}	! random seed for HIJING
+{ZPC_SEED}		! random seed for parton cascade
 0		! flag for K0s weak decays (D=0,no; 1,yes)
 1		! flag for phi decays at end of hadron cascade (D=1,yes; 0,no)
 0		! flag for pi0 decays at end of hadron cascade (D=0,no; 1,yes)

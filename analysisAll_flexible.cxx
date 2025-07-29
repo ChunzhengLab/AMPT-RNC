@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include <deque>
 #include <fstream>
 #include <string>
 #include <algorithm>
@@ -20,12 +19,11 @@
 
 using namespace std;
 
-// Global constants
-const size_t MIXPOOLSIZE = 4;
+// Global constants  
 typedef std::pair<int, int> PIDPairs;
 
 // Particle definitions
-vector<string> vec_pid_hadron = {"pi+", "pi-", "K+", "K-", "p", "pbar", "n", "nbar", "phi", "Lambda", "LambdaBar"};
+vector<string> vec_pid_hadron = {"pipos", "pineg", "Kpos", "Kneg", "p", "pbar", "n", "nbar", "phi", "Lambda", "LambdaBar"};
 vector<int> vec_pdg_hadron = {211, -211, 321, -321, 2212, -2212, 2112, -2112, 333, 3122, -3122};
 
 // Quark definitions (u, d, s quarks and antiquarks)
@@ -43,7 +41,7 @@ struct ROOTFormat {
     
     // Data types and array sizes
     bool use_double_precision = true;
-    int max_particles = 20000;
+    int max_particles = 99999;
     
     // Additional branches (optional)
     string eventID_branch = "";
@@ -71,7 +69,7 @@ map<string, ROOTFormat> predefined_formats = {
         "pid",                    // pid_branch
         "px", "py", "pz",        // momentum branches
         "x", "y", "z",           // position branches
-        true, 20000,             // double precision, max particles
+        true, 99999,             // double precision, max particles
         "eventID", "runID"       // optional branches
     }},
     {"hadron_before_art", {
@@ -81,7 +79,7 @@ map<string, ROOTFormat> predefined_formats = {
         "pid",
         "px", "py", "pz",
         "x", "y", "z",
-        true, 20000,
+        true, 99999,
         "eventID", ""
         // Note: also contains miss, nelp, ninp, nelt, ninthj, mass, t branches
         // but we only need the essential ones for analysis
@@ -93,7 +91,7 @@ map<string, ROOTFormat> predefined_formats = {
         "pid", 
         "px", "py", "pz",
         "x", "y", "z",
-        true, 20000,
+        true, 99999,
         "eventID", ""
         // Note: also contains miss, nelp, ninp, nelt, ninthj, mass, t branches
         // but we only need the essential ones for analysis
@@ -105,7 +103,7 @@ map<string, ROOTFormat> predefined_formats = {
         "pid",
         "px", "py", "pz",
         "x", "y", "z",
-        true, 20000,
+        true, 99999,
         "eventID", ""
         // Note: ZPC parton data after cascade
     }},
@@ -116,7 +114,7 @@ map<string, ROOTFormat> predefined_formats = {
         "pid",
         "px", "py", "pz",
         "x", "y", "z",
-        true, 20000,
+        true, 99999,
         "eventID", ""
         // Note: also contains istrg0, xstrg0, ystrg0 string info branches
     }},
@@ -133,15 +131,6 @@ map<string, ROOTFormat> predefined_formats = {
 };
 
 // Event class for mixing
-class Event {
-public:
-    vector<int> pid_trks;
-    vector<TVector3> p3_trks;
-    vector<TVector3> x3_trks;
-    
-    Event(const vector<int>& pids, const vector<TVector3>& p3s, const vector<TVector3>& x3s) 
-        : pid_trks(pids), p3_trks(p3s), x3_trks(x3s) {}
-};
 
 // Data reader class - handles different ROOT formats
 class AMPTDataReader {
@@ -399,10 +388,9 @@ int main(int argc, char** argv) {
         vec_p_v2_spatial_pid.push_back(new TProfile(Form("p_v2_spatial_%s", particle_name.c_str()), "", 50, 0, 20));
     }
     
-    // Angular correlation histograms (simplified for demo)
-    map<PIDPairs, TH1D*> map_h1_angCorr_sameEvt_pidpair_cent0010;
-    map<PIDPairs, TH1D*> map_h1_angCorr_sameEvt_pidpair_cent3040;
-    map<PIDPairs, TH1D*> map_h1_angCorr_sameEvt_pidpair_cent6070;
+    // Angular correlation histograms
+    map<PIDPairs, TH1D*> map_h1_angCorr_momentum_pidpair;
+    map<PIDPairs, TH1D*> map_h1_angCorr_spatial_pidpair;
     
     // Initialize correlation histograms  
     for (size_t i = 0; i < pid_names->size(); i++) {
@@ -413,21 +401,17 @@ int main(int argc, char** argv) {
             
             string pair_name = (*pid_names)[i] + "_" + (*pid_names)[j];
             
-            map_h1_angCorr_sameEvt_pidpair_cent0010[pidpair] = new TH1D(Form("h1_angCorr_sameEvt_%s_cent0010", pair_name.c_str()), "", 30, -0.5*TMath::Pi(), 1.5*TMath::Pi());
-            map_h1_angCorr_sameEvt_pidpair_cent3040[pidpair] = new TH1D(Form("h1_angCorr_sameEvt_%s_cent3040", pair_name.c_str()), "", 30, -0.5*TMath::Pi(), 1.5*TMath::Pi());
-            map_h1_angCorr_sameEvt_pidpair_cent6070[pidpair] = new TH1D(Form("h1_angCorr_sameEvt_%s_cent6070", pair_name.c_str()), "", 30, -0.5*TMath::Pi(), 1.5*TMath::Pi());
+            map_h1_angCorr_momentum_pidpair[pidpair] = new TH1D(Form("h1_angCorr_momentum_%s", pair_name.c_str()), "", 32, -TMath::Pi()/2, 3*TMath::Pi()/2);
+            map_h1_angCorr_spatial_pidpair[pidpair] = new TH1D(Form("h1_angCorr_spatial_%s", pair_name.c_str()), "", 32, -TMath::Pi()/2, 3*TMath::Pi()/2);
         }
     }
-    
-    // Event mixing pools
-    deque<Event> mixPool_0010, mixPool_3040, mixPool_6070;
     
     // Event loop - using unified data reader interface
     Long64_t nEvents = reader.GetEntries();
     cout << "Processing " << nEvents << " events..." << endl;
     
     for (Long64_t iEvt = 0; iEvt < nEvents; iEvt++) {
-        if (iEvt % 1000 == 0) cout << "Processing event " << iEvt << endl;
+        cout << "Processing event " << iEvt << endl;
         
         reader.GetEntry(iEvt);
         
@@ -480,45 +464,29 @@ int main(int argc, char** argv) {
             }
         }
         
-        // Add to mixing pool
-        if (cent == 0) {
-            mixPool_0010.emplace_back(pid_trks, p3_trks, x3_trks);
-            if (mixPool_0010.size() > MIXPOOLSIZE) mixPool_0010.pop_front();
-        } else if (cent == 3) {
-            mixPool_3040.emplace_back(pid_trks, p3_trks, x3_trks);
-            if (mixPool_3040.size() > MIXPOOLSIZE) mixPool_3040.pop_front();
-        } else if (cent == 6) {
-            mixPool_6070.emplace_back(pid_trks, p3_trks, x3_trks);
-            if (mixPool_6070.size() > MIXPOOLSIZE) mixPool_6070.pop_front();
-        }
-        
-        auto& mixPool = (cent == 0) ? mixPool_0010 : (cent == 3) ? mixPool_3040 : mixPool_6070;
-        if (mixPool.size() < MIXPOOLSIZE) continue;
-        
-        auto& evt_this = mixPool.back();
-        
-        // Same event correlations (simplified)
-        for (size_t iTrk = 0; iTrk < evt_this.pid_trks.size(); iTrk++) {
-            int pdg_i = evt_this.pid_trks[iTrk];
-            float phi_i = evt_this.p3_trks[iTrk].Phi();
-            
-            for (size_t jTrk = 0; jTrk < evt_this.pid_trks.size(); jTrk++) {
-                if (iTrk == jTrk) continue;
+        // Angular correlations for 30-40% centrality only
+        if (cent == 3) {
+            for (size_t iTrk = 0; iTrk < pid_trks.size(); iTrk++) {
+                int pdg_i = pid_trks[iTrk];
+                float phi_momentum_i = p3_trks[iTrk].Phi();
+                float phi_spatial_i = x3_trks[iTrk].Phi();
                 
-                int pdg_j = evt_this.pid_trks[jTrk];
-                float phi_j = evt_this.p3_trks[jTrk].Phi();
-                
-                PIDPairs pidpair = make_pair(min(pdg_i, pdg_j), max(pdg_i, pdg_j));
-                
-                float dphi = range_delta_phi(phi_i - phi_j);
-                
-                // Fill correlation histograms
-                if (cent == 0) {
-                    map_h1_angCorr_sameEvt_pidpair_cent0010[pidpair]->Fill(dphi);
-                } else if (cent == 3) {
-                    map_h1_angCorr_sameEvt_pidpair_cent3040[pidpair]->Fill(dphi);
-                } else if (cent == 6) {
-                    map_h1_angCorr_sameEvt_pidpair_cent6070[pidpair]->Fill(dphi);
+                for (size_t jTrk = 0; jTrk < pid_trks.size(); jTrk++) {
+                    if (iTrk == jTrk) continue;
+                    
+                    int pdg_j = pid_trks[jTrk];
+                    float phi_momentum_j = p3_trks[jTrk].Phi();
+                    float phi_spatial_j = x3_trks[jTrk].Phi();
+                    
+                    PIDPairs pidpair = make_pair(min(pdg_i, pdg_j), max(pdg_i, pdg_j));
+                    
+                    // Momentum space correlation
+                    float dphi_momentum = range_delta_phi(phi_momentum_i - phi_momentum_j);
+                    map_h1_angCorr_momentum_pidpair[pidpair]->Fill(dphi_momentum);
+                    
+                    // Spatial correlation  
+                    float dphi_spatial = range_delta_phi(phi_spatial_i - phi_spatial_j);
+                    map_h1_angCorr_spatial_pidpair[pidpair]->Fill(dphi_spatial);
                 }
             }
         }
@@ -539,9 +507,8 @@ int main(int argc, char** argv) {
     for (auto p : vec_p_v2_pid) p->Write();
     for (auto p : vec_p_v2_spatial_pid) p->Write();
     
-    for (auto& pair : map_h1_angCorr_sameEvt_pidpair_cent0010) pair.second->Write();
-    for (auto& pair : map_h1_angCorr_sameEvt_pidpair_cent3040) pair.second->Write();
-    for (auto& pair : map_h1_angCorr_sameEvt_pidpair_cent6070) pair.second->Write();
+    for (auto& pair : map_h1_angCorr_momentum_pidpair) pair.second->Write();
+    for (auto& pair : map_h1_angCorr_spatial_pidpair) pair.second->Write();
     
     outFile->Close();
     
@@ -558,12 +525,13 @@ int GetCentrality(float b) {
         double rMax = sqrt(10.0 * i / 100.0) * 2.0 * pow(197., 1.0/3.0) * 1.2;
         if (b <= rMax) return i - 1;
     }
-    return -1;
+    // For large impact parameters, return centrality 9 instead of -1
+    return 9;
 }
 
 float range_delta_phi(float dphi) {
-    while (dphi > TMath::Pi()) dphi -= 2 * TMath::Pi();
-    while (dphi < -TMath::Pi()) dphi += 2 * TMath::Pi();
+    while (dphi > 3*TMath::Pi()/2) dphi -= 2 * TMath::Pi();
+    while (dphi < -TMath::Pi()/2) dphi += 2 * TMath::Pi();
     return dphi;
 }
 

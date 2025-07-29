@@ -35,7 +35,6 @@ int current_miss = 0;
 extern "C" {
 
 void init_root_() {
-    std::cout << "DEBUG: init_root() called" << std::endl;
     
     // Create ROOT file
     ampt_file = new TFile("ana/ampt.root", "RECREATE");
@@ -75,10 +74,8 @@ void init_root_() {
 }
 
 void finalize_root_() {
-    std::cout << "DEBUG: finalize_root() called" << std::endl;
     
     if (ampt_file && ampt_tree) {
-        std::cout << "DEBUG: Tree entries before write: " << ampt_tree->GetEntries() << std::endl;
         ampt_file->cd();
         ampt_tree->Write();  // Simple write without flags
         ampt_file->Close();
@@ -92,8 +89,6 @@ void finalize_root_() {
 
 void write_ampt_event_header_(int* eventID, int* runID, int* nParticles, double* b,
                             int* np1, int* np2, int* nelp, int* ninp, int* nelt, int* nint, double* phiRP) {
-    std::cout << "DEBUG: write_ampt_event_header() called with eventID=" << *eventID 
-              << " nParticles=" << *nParticles << std::endl;
     
     // Store event header data
     current_eventID = *eventID;
@@ -130,14 +125,6 @@ void write_ampt_particle_(int* pid, double* px, double* py, double* pz, double* 
         return;
     }
     
-    // Debug output for first few particles with ALL parameters
-    if (particle_count < 3) {
-        std::cout << "DEBUG: write_ampt_particle() particle " << (particle_count + 1) 
-                  << " RECEIVED:" << std::endl;
-        std::cout << "  pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
-                  << " mass=" << *mass << std::endl;
-        std::cout << "  x=" << *x << " y=" << *y << " z=" << *z << " t=" << *t << std::endl;
-    }
     
     // Store particle data
     particle_pid[particle_count] = *pid;
@@ -152,17 +139,11 @@ void write_ampt_particle_(int* pid, double* px, double* py, double* pz, double* 
     
     particle_count++;
     
-    // Progress output
-    if (particle_count % 1000 == 0) {
-        std::cout << "DEBUG: Processed " << particle_count << " particles" << std::endl;
-    }
     
     // When we have all particles, fill the tree
     if (particle_count == current_nParticles) {
         if (ampt_tree) {
             ampt_tree->Fill();
-            std::cout << "DEBUG: Event " << current_eventID << " filled to ROOT tree with " 
-                      << particle_count << " particles" << std::endl;
         }
     }
 }
@@ -173,7 +154,6 @@ TTree* zpc_tree = nullptr;
 int zpc_particle_count = 0;
 
 void init_zpc_root_() {
-    std::cout << "DEBUG: init_zpc_root_() called" << std::endl;
     
     zpc_file = new TFile("ana/zpc.root", "RECREATE");
     if (!zpc_file || zpc_file->IsZombie()) {
@@ -208,10 +188,8 @@ void init_zpc_root_() {
 }
 
 void finalize_zpc_root_() {
-    std::cout << "DEBUG: finalize_zpc_root_() called" << std::endl;
     
     if (zpc_file && zpc_tree) {
-        std::cout << "DEBUG: ZPC Tree entries before write: " << zpc_tree->GetEntries() << std::endl;
         zpc_file->cd();
         zpc_tree->Write();
         zpc_file->Close();
@@ -225,8 +203,6 @@ void finalize_zpc_root_() {
 
 void write_zpc_event_header_(int* eventID, int* miss, int* nParticles, double* b,
                             int* nelp, int* ninp, int* nelt, int* ninthj) {
-    std::cout << "DEBUG: write_zpc_event_header_() called with eventID=" << *eventID 
-              << " miss=" << *miss << " nParticles=" << *nParticles << std::endl;
     
     current_eventID = *eventID;
     current_miss = *miss;
@@ -258,11 +234,6 @@ void write_zpc_particle_(int* pid, double* px, double* py, double* pz, double* m
         return;
     }
     
-    if (zpc_particle_count < 3) {
-        std::cout << "DEBUG: write_zpc_particle_() particle " << (zpc_particle_count + 1) 
-                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
-                  << " mass=" << *mass << std::endl;
-    }
     
     particle_pid[zpc_particle_count] = *pid;
     particle_px[zpc_particle_count] = *px;
@@ -276,15 +247,10 @@ void write_zpc_particle_(int* pid, double* px, double* py, double* pz, double* m
     
     zpc_particle_count++;
     
-    if (zpc_particle_count % 1000 == 0) {
-        std::cout << "DEBUG: Processed " << zpc_particle_count << " ZPC particles" << std::endl;
-    }
     
     if (zpc_particle_count == current_nParticles) {
         if (zpc_tree) {
             zpc_tree->Fill();
-            std::cout << "DEBUG: ZPC Event " << current_eventID << " filled to ROOT tree with " 
-                      << zpc_particle_count << " particles" << std::endl;
         }
     }
 }
@@ -300,7 +266,6 @@ double parton_xstrg0[MAX_PARTICLES];
 double parton_ystrg0[MAX_PARTICLES];
 
 void init_parton_initial_root_() {
-    std::cout << "DEBUG: init_parton_initial_root_() called" << std::endl;
     
     parton_file = new TFile("ana/parton-initial.root", "RECREATE");
     if (!parton_file || parton_file->IsZombie()) {
@@ -310,10 +275,11 @@ void init_parton_initial_root_() {
     
     parton_tree = new TTree("parton_initial", "AMPT initial partons after propagation");
     
-    // Create branches - event header (iaevt, miss, mul)
+    // Create branches - event header (iaevt, miss, mul, bimp)
     parton_tree->Branch("eventID", &current_eventID, "eventID/I");
     parton_tree->Branch("miss", &current_miss, "miss/I");
     parton_tree->Branch("nParticles", &current_nParticles, "nParticles/I");
+    parton_tree->Branch("impactParameter", &current_impactParameter, "impactParameter/D");
     
     // Create branches - particle arrays (12 fields: ityp, px, py, pz, xmass, gx, gy, gz, ft, istrg0, xstrg0, ystrg0)
     parton_tree->Branch("pid", particle_pid, "pid[nParticles]/I");
@@ -333,10 +299,8 @@ void init_parton_initial_root_() {
 }
 
 void finalize_parton_initial_root_() {
-    std::cout << "DEBUG: finalize_parton_initial_root_() called" << std::endl;
     
     if (parton_file && parton_tree) {
-        std::cout << "DEBUG: Parton Tree entries before write: " << parton_tree->GetEntries() << std::endl;
         parton_file->cd();
         parton_tree->Write();
         parton_file->Close();
@@ -348,13 +312,12 @@ void finalize_parton_initial_root_() {
     }
 }
 
-void write_parton_initial_event_header_(int* eventID, int* miss, int* nParticles) {
-    std::cout << "DEBUG: write_parton_initial_event_header_() called with eventID=" << *eventID 
-              << " miss=" << *miss << " nParticles=" << *nParticles << std::endl;
+void write_parton_initial_event_header_(int* eventID, int* miss, int* nParticles, double* b) {
     
     current_eventID = *eventID;
     current_miss = *miss;
     current_nParticles = *nParticles;
+    current_impactParameter = *b;
     
     parton_particle_count = 0;
     
@@ -381,12 +344,6 @@ void write_parton_initial_particle_(int* pid, double* px, double* py, double* pz
         return;
     }
     
-    if (parton_particle_count < 3) {
-        std::cout << "DEBUG: write_parton_initial_particle_() particle " << (parton_particle_count + 1) 
-                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
-                  << " mass=" << *mass << std::endl;
-        std::cout << "  istrg0=" << *istrg0 << " xstrg0=" << *xstrg0 << " ystrg0=" << *ystrg0 << std::endl;
-    }
     
     particle_pid[parton_particle_count] = *pid;
     particle_px[parton_particle_count] = *px;
@@ -403,15 +360,10 @@ void write_parton_initial_particle_(int* pid, double* px, double* py, double* pz
     
     parton_particle_count++;
     
-    if (parton_particle_count % 1000 == 0) {
-        std::cout << "DEBUG: Processed " << parton_particle_count << " parton particles" << std::endl;
-    }
     
     if (parton_particle_count == current_nParticles) {
         if (parton_tree) {
             parton_tree->Fill();
-            std::cout << "DEBUG: Parton Event " << current_eventID << " filled to ROOT tree with " 
-                      << parton_particle_count << " particles" << std::endl;
         }
     }
 }
@@ -422,7 +374,6 @@ TTree* hadron_before_art_tree = nullptr;
 int hadron_before_art_particle_count = 0;
 
 void init_hadron_before_art_root_() {
-    std::cout << "DEBUG: init_hadron_before_art_root_() called" << std::endl;
     
     hadron_before_art_file = new TFile("ana/hadron-before-art.root", "RECREATE");
     if (!hadron_before_art_file || hadron_before_art_file->IsZombie()) {
@@ -457,10 +408,8 @@ void init_hadron_before_art_root_() {
 }
 
 void finalize_hadron_before_art_root_() {
-    std::cout << "DEBUG: finalize_hadron_before_art_root_() called" << std::endl;
     
     if (hadron_before_art_file && hadron_before_art_tree) {
-        std::cout << "DEBUG: Hadron before ART Tree entries before write: " << hadron_before_art_tree->GetEntries() << std::endl;
         hadron_before_art_file->cd();
         hadron_before_art_tree->Write();
         hadron_before_art_file->Close();
@@ -474,8 +423,6 @@ void finalize_hadron_before_art_root_() {
 
 void write_hadron_before_art_event_header_(int* eventID, int* miss, int* nParticles, double* b,
                                            int* nelp, int* ninp, int* nelt, int* ninthj) {
-    std::cout << "DEBUG: write_hadron_before_art_event_header_() called with eventID=" << *eventID 
-              << " miss=" << *miss << " nParticles=" << *nParticles << std::endl;
     
     current_eventID = *eventID;
     current_miss = *miss;
@@ -507,11 +454,6 @@ void write_hadron_before_art_particle_(int* pid, double* px, double* py, double*
         return;
     }
     
-    if (hadron_before_art_particle_count < 3) {
-        std::cout << "DEBUG: write_hadron_before_art_particle_() particle " << (hadron_before_art_particle_count + 1) 
-                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
-                  << " mass=" << *mass << std::endl;
-    }
     
     particle_pid[hadron_before_art_particle_count] = *pid;
     particle_px[hadron_before_art_particle_count] = *px;
@@ -525,15 +467,10 @@ void write_hadron_before_art_particle_(int* pid, double* px, double* py, double*
     
     hadron_before_art_particle_count++;
     
-    if (hadron_before_art_particle_count % 1000 == 0) {
-        std::cout << "DEBUG: Processed " << hadron_before_art_particle_count << " hadron before ART particles" << std::endl;
-    }
     
     if (hadron_before_art_particle_count == current_nParticles) {
         if (hadron_before_art_tree) {
             hadron_before_art_tree->Fill();
-            std::cout << "DEBUG: Hadron before ART Event " << current_eventID << " filled to ROOT tree with " 
-                      << hadron_before_art_particle_count << " particles" << std::endl;
         }
     }
 }
@@ -544,7 +481,6 @@ TTree* hadron_before_melting_tree = nullptr;
 int hadron_before_melting_particle_count = 0;
 
 void init_hadron_before_melting_root_() {
-    std::cout << "DEBUG: init_hadron_before_melting_root_() called" << std::endl;
     
     hadron_before_melting_file = new TFile("ana/hadron-before-melting.root", "RECREATE");
     if (!hadron_before_melting_file || hadron_before_melting_file->IsZombie()) {
@@ -579,10 +515,8 @@ void init_hadron_before_melting_root_() {
 }
 
 void finalize_hadron_before_melting_root_() {
-    std::cout << "DEBUG: finalize_hadron_before_melting_root_() called" << std::endl;
     
     if (hadron_before_melting_file && hadron_before_melting_tree) {
-        std::cout << "DEBUG: Hadron before melting Tree entries before write: " << hadron_before_melting_tree->GetEntries() << std::endl;
         hadron_before_melting_file->cd();
         hadron_before_melting_tree->Write();
         hadron_before_melting_file->Close();
@@ -596,9 +530,6 @@ void finalize_hadron_before_melting_root_() {
 
 void write_hadron_before_melting_event_header_(int* eventID, int* miss, int* nParticles, double* b,
                                              int* nelp, int* ninp, int* nelt, int* ninthj) {
-    std::cout << "DEBUG: write_hadron_before_melting_event_header_() called with eventID=" << *eventID 
-              << " miss=" << *miss << " nParticles=" << *nParticles << " b=" << *b 
-              << " nelp=" << *nelp << " ninp=" << *ninp << " nelt=" << *nelt << " ninthj=" << *ninthj << std::endl;
     
     current_eventID = *eventID;
     current_miss = *miss;
@@ -630,11 +561,6 @@ void write_hadron_before_melting_particle_(int* pid, double* px, double* py, dou
         return;
     }
     
-    if (hadron_before_melting_particle_count < 3) {
-        std::cout << "DEBUG: write_hadron_before_melting_particle_() particle " << (hadron_before_melting_particle_count + 1) 
-                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
-                  << " mass=" << *mass << std::endl;
-    }
     
     particle_pid[hadron_before_melting_particle_count] = *pid;
     particle_px[hadron_before_melting_particle_count] = *px;
@@ -648,15 +574,10 @@ void write_hadron_before_melting_particle_(int* pid, double* px, double* py, dou
     
     hadron_before_melting_particle_count++;
     
-    if (hadron_before_melting_particle_count % 1000 == 0) {
-        std::cout << "DEBUG: Processed " << hadron_before_melting_particle_count << " hadron before melting particles" << std::endl;
-    }
     
     if (hadron_before_melting_particle_count == current_nParticles) {
         if (hadron_before_melting_tree) {
             hadron_before_melting_tree->Fill();
-            std::cout << "DEBUG: Hadron before melting Event " << current_eventID << " filled to ROOT tree with " 
-                      << hadron_before_melting_particle_count << " particles" << std::endl;
         }
     }
 }

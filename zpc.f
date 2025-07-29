@@ -821,6 +821,8 @@ clin-6/06/02 local parton freezeout:
 cc      SAVE /frzprc/
         common /rndm3/ iseedp
 cc      SAVE /rndm3/
+        common /lastt/itimeh,bimp
+cc      SAVE /lastt/
         common /para7/ ioscar,nsmbbbar,nsmmeson
         COMMON /AREVT/ IAEVT, IARUN, MISS
         SAVE   
@@ -907,7 +909,7 @@ clin-6/2009
 c       ROOT interface for string melting modes - write event header  
         if((isoft.eq.3.or.isoft.eq.4.or.isoft.eq.5).and.
      1     (ioscar.eq.2.or.ioscar.eq.3)) then
-            call WRITE_PARTON_INITIAL_EVENT_HEADER(iaevt,miss,mul)
+            call WRITE_PARTON_INITIAL_EVENT_HEADER(iaevt,miss,mul,bimp)
         endif
 
         do 1003 i = 1, mul
@@ -6147,6 +6149,8 @@ cc      SAVE /para7/
 cc      SAVE /ilist6/
         common /rndm1/ number
 cc      SAVE /rndm1/
+        common /lastt/itimeh,bimp
+cc      SAVE /lastt/
         common /rndm2/ iff
 cc      SAVE /rndm2/
         common /rndm3/ iseedp
@@ -6373,7 +6377,7 @@ c       file header
      &        reffra, ebeam, ntestp
            nff = 1
            event = 1
-           bimp = 0d0
+c          bimp = 0d0  ! commented out - use bimp from lastt common block set by hijing
            phi = 0d0
         end if
 

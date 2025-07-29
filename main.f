@@ -103,8 +103,6 @@ c     coalescence method and B/M ratio parameter:
       READ (24, *) icoal_method
       READ (24, *) drbmRatio
       READ (24, *) mesonBaryonRatio
-      write(6,*) 'DEBUG: icoal_method=',icoal_method,', drbmRatio=',
-     1     drbmRatio,', mesonBaryonRatio=',mesonBaryonRatio
 c     validate coalescence parameters:
       if(icoal_method.lt.1.or.icoal_method.gt.3) then
          write(6,*) 'Invalid coalescence method:',icoal_method

@@ -12,7 +12,7 @@ extern TFile* ampt_file;
 extern TTree* ampt_tree;
 
 // Event data structure (simple arrays)
-const int MAX_PARTICLES = 20000;
+const int MAX_PARTICLES = 99999;
 extern int current_eventID;
 extern int current_runID;
 extern int current_nParticles;
@@ -43,6 +43,7 @@ extern "C" {
                                 int* np1, int* np2, int* nelp, int* ninp, int* nelt, int* nint, double* phiRP);
     void write_ampt_particle_(int* pid, double* px, double* py, double* pz, double* mass,
                             double* x, double* y, double* z, double* t);
+    void write_parton_initial_event_header_(int* eventID, int* miss, int* nParticles, double* b);
 }
 
 #endif

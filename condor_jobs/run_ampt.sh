@@ -37,15 +37,15 @@ ICOAL_METHOD=$3
 # 固定参数 - ALICE LHC设置
 ENERGY=5020
 NEVNT=500
-BMIN=0.0
-BMAX=20.0
+BMIN=7.65
+BMAX=8.83
 ISOFT=4
 
 echo "配置参数:"
 echo "  作业ID    : $JOB_ID"  
 echo "  ZPC前打乱 : $ISHLF (0=不打乱, 1=d夸克, 2=u夸克, 3=s夸克, 4=u+d, 5=u+d+s, 6=全部)"
 echo "  聚合方式  : $ICOAL_METHOD (1=经典, 2=BM竞争, 3=随机)"
-echo "  固定参数  : 能量=${ENERGY}GeV(ALICE LHC), 事件数=${NEVNT}, 撞击参数=${BMIN}-${BMAX}fm, 铅-铅碰撞"
+echo "  固定参数  : 能量=${ENERGY}GeV(ALICE LHC), 事件数=${NEVNT}, 撞击参数=${BMIN}-${BMAX}fm(30-40%中心度), 铅-铅碰撞"
 
 # ----------------------------
 # 3. 工作目录准备
@@ -53,9 +53,11 @@ echo "  固定参数  : 能量=${ENERGY}GeV(ALICE LHC), 事件数=${NEVNT}, 撞�
 WORK_DIR="condor_jobs/outputs/job_${JOB_ID}"
 mkdir -p "$WORK_DIR"
 
-# 生成唯一的随机种子
-HIJING_SEED=$((13150909 + JOB_ID * 1000 + $(date +%N) % 1000))
-ZPC_SEED=$((8 + JOB_ID))
+# 生成唯一的随机种子 (与test_local.sh一致的机制)
+# 使用JOB_ID作为随机数种子基础，确保每个作业不同但可重现
+RANDOM=$((JOB_ID + $(date +%s) % 1000))
+HIJING_SEED=$((13150909 + $RANDOM % 10000))
+ZPC_SEED=$((1 + $RANDOM % 100))
 
 echo "随机种子: HIJING=$HIJING_SEED, ZPC=$ZPC_SEED"
 
@@ -129,11 +131,55 @@ fi
 # ----------------------------
 echo "开始运行AMPT模拟..."
 
-# 运行AMPT程序
-timeout 3600 ./ampt || {
-    echo "错误: AMPT运行失败或超时"
+# 创建输出目录
+mkdir -p ana
+
+# 运行AMPT程序 (提供随机种子以防配置文件中ihjsed=11)
+echo "$HIJING_SEED" | ./ampt || {
+    echo "错误: AMPT运行失败"
     exit 1
 }
+
+echo "AMPT模拟完成，开始运行分析程序..."
+
+# 运行分析程序 - 分析所有生成的ROOT文件
+if [ -d "ana" ]; then
+    for rootfile in ana/*.root; do
+        if [ -f "$rootfile" ]; then
+            filename=$(basename "$rootfile" .root)
+            output_analysis="ana/${filename}_analysis.root"
+            
+            # 根据文件名确定格式
+            case "$filename" in
+                "ampt")
+                    format="ampt"
+                    ;;
+                "zpc")
+                    format="zpc"
+                    ;;
+                "parton-initial")
+                    format="parton_initial"
+                    ;;
+                "hadron-before-art")
+                    format="hadron_before_art"
+                    ;;
+                "hadron-before-melting")
+                    format="hadron_before_melting"
+                    ;;
+                *)
+                    format="auto"
+                    ;;
+            esac
+            
+            echo "分析文件: $rootfile -> $output_analysis (格式: $format)"
+            ./analysisAll_flexible "$rootfile" "$output_analysis" "$format" || {
+                echo "警告: 分析文件 $rootfile 失败"
+            }
+        fi
+    done
+else
+    echo "警告: 未找到ana目录，跳过分析步骤"
+fi
 
 # ----------------------------
 # 7. 输出文件管理
