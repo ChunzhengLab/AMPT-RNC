@@ -29,6 +29,9 @@ double particle_t[MAX_PARTICLES];
 // Current particle counter
 int particle_count = 0;
 
+// Additional data for specialized files
+int current_miss = 0;
+
 extern "C" {
 
 void init_root_() {
@@ -160,6 +163,255 @@ void write_ampt_particle_(int* pid, double* px, double* py, double* pz, double* 
             ampt_tree->Fill();
             std::cout << "DEBUG: Event " << current_eventID << " filled to ROOT tree with " 
                       << particle_count << " particles" << std::endl;
+        }
+    }
+}
+
+// ===== ZPC ROOT interface =====
+TFile* zpc_file = nullptr;
+TTree* zpc_tree = nullptr;
+int zpc_particle_count = 0;
+
+void init_zpc_root_() {
+    std::cout << "DEBUG: init_zpc_root_() called" << std::endl;
+    
+    zpc_file = new TFile("ana/zpc.root", "RECREATE");
+    if (!zpc_file || zpc_file->IsZombie()) {
+        std::cerr << "ERROR: Cannot create zpc ROOT file" << std::endl;
+        return;
+    }
+    
+    zpc_tree = new TTree("zpc", "AMPT zero momentum frame partons");
+    
+    // Create branches - event header (IAEVT, MISS, MUL, bimp, NELP, NINP, NELT, NINTHJ)
+    zpc_tree->Branch("eventID", &current_eventID, "eventID/I");
+    zpc_tree->Branch("miss", &current_miss, "miss/I");
+    zpc_tree->Branch("nParticles", &current_nParticles, "nParticles/I");
+    zpc_tree->Branch("impactParameter", &current_impactParameter, "impactParameter/D");
+    zpc_tree->Branch("nelp", &current_nelp, "nelp/I");
+    zpc_tree->Branch("ninp", &current_ninp, "ninp/I");
+    zpc_tree->Branch("nelt", &current_nelt, "nelt/I");
+    zpc_tree->Branch("ninthj", &current_ninthj, "ninthj/I");
+    
+    // Create branches - particle arrays (ITYP5, PX5, PY5, PZ5, XMASS5, GX5, GY5, GZ5, FT5)
+    zpc_tree->Branch("pid", particle_pid, "pid[nParticles]/I");
+    zpc_tree->Branch("px", particle_px, "px[nParticles]/D");
+    zpc_tree->Branch("py", particle_py, "py[nParticles]/D");
+    zpc_tree->Branch("pz", particle_pz, "pz[nParticles]/D");
+    zpc_tree->Branch("mass", particle_mass, "mass[nParticles]/D");
+    zpc_tree->Branch("x", particle_x, "x[nParticles]/D");
+    zpc_tree->Branch("y", particle_y, "y[nParticles]/D");
+    zpc_tree->Branch("z", particle_z, "z[nParticles]/D");
+    zpc_tree->Branch("t", particle_t, "t[nParticles]/D");
+    
+    std::cout << "ZPC ROOT interface initialized" << std::endl;
+}
+
+void finalize_zpc_root_() {
+    std::cout << "DEBUG: finalize_zpc_root_() called" << std::endl;
+    
+    if (zpc_file && zpc_tree) {
+        std::cout << "DEBUG: ZPC Tree entries before write: " << zpc_tree->GetEntries() << std::endl;
+        zpc_file->cd();
+        zpc_tree->Write();
+        zpc_file->Close();
+        delete zpc_file;
+        zpc_file = nullptr;
+        zpc_tree = nullptr;
+        
+        std::cout << "ZPC ROOT interface finalized" << std::endl;
+    }
+}
+
+void write_zpc_event_header_(int* eventID, int* miss, int* nParticles, double* b,
+                            int* nelp, int* ninp, int* nelt, int* ninthj) {
+    std::cout << "DEBUG: write_zpc_event_header_() called with eventID=" << *eventID 
+              << " miss=" << *miss << " nParticles=" << *nParticles << std::endl;
+    
+    current_eventID = *eventID;
+    current_miss = *miss;
+    current_nParticles = *nParticles;
+    current_impactParameter = *b;
+    current_nelp = *nelp;
+    current_ninp = *ninp;
+    current_nelt = *nelt;
+    current_ninthj = *ninthj;
+    
+    zpc_particle_count = 0;
+    
+    // Initialize arrays
+    memset(particle_pid, 0, sizeof(particle_pid));
+    memset(particle_px, 0, sizeof(particle_px));
+    memset(particle_py, 0, sizeof(particle_py));
+    memset(particle_pz, 0, sizeof(particle_pz));
+    memset(particle_mass, 0, sizeof(particle_mass));
+    memset(particle_x, 0, sizeof(particle_x));
+    memset(particle_y, 0, sizeof(particle_y));
+    memset(particle_z, 0, sizeof(particle_z));
+    memset(particle_t, 0, sizeof(particle_t));
+}
+
+void write_zpc_particle_(int* pid, double* px, double* py, double* pz, double* mass,
+                        double* x, double* y, double* z, double* t) {
+    if (zpc_particle_count >= MAX_PARTICLES) {
+        std::cerr << "ERROR: Too many ZPC particles, limit is " << MAX_PARTICLES << std::endl;
+        return;
+    }
+    
+    if (zpc_particle_count < 3) {
+        std::cout << "DEBUG: write_zpc_particle_() particle " << (zpc_particle_count + 1) 
+                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
+                  << " mass=" << *mass << std::endl;
+    }
+    
+    particle_pid[zpc_particle_count] = *pid;
+    particle_px[zpc_particle_count] = *px;
+    particle_py[zpc_particle_count] = *py;
+    particle_pz[zpc_particle_count] = *pz;
+    particle_mass[zpc_particle_count] = *mass;
+    particle_x[zpc_particle_count] = *x;
+    particle_y[zpc_particle_count] = *y;
+    particle_z[zpc_particle_count] = *z;
+    particle_t[zpc_particle_count] = *t;
+    
+    zpc_particle_count++;
+    
+    if (zpc_particle_count % 1000 == 0) {
+        std::cout << "DEBUG: Processed " << zpc_particle_count << " ZPC particles" << std::endl;
+    }
+    
+    if (zpc_particle_count == current_nParticles) {
+        if (zpc_tree) {
+            zpc_tree->Fill();
+            std::cout << "DEBUG: ZPC Event " << current_eventID << " filled to ROOT tree with " 
+                      << zpc_particle_count << " particles" << std::endl;
+        }
+    }
+}
+
+// ===== PARTON INITIAL ROOT interface =====
+TFile* parton_file = nullptr;
+TTree* parton_tree = nullptr;
+int parton_particle_count = 0;
+
+// Additional arrays for parton data (12 fields total)
+int parton_istrg0[MAX_PARTICLES];
+double parton_xstrg0[MAX_PARTICLES];
+double parton_ystrg0[MAX_PARTICLES];
+
+void init_parton_initial_root_() {
+    std::cout << "DEBUG: init_parton_initial_root_() called" << std::endl;
+    
+    parton_file = new TFile("ana/parton-initial.root", "RECREATE");
+    if (!parton_file || parton_file->IsZombie()) {
+        std::cerr << "ERROR: Cannot create parton initial ROOT file" << std::endl;
+        return;
+    }
+    
+    parton_tree = new TTree("parton_initial", "AMPT initial partons after propagation");
+    
+    // Create branches - event header (iaevt, miss, mul)
+    parton_tree->Branch("eventID", &current_eventID, "eventID/I");
+    parton_tree->Branch("miss", &current_miss, "miss/I");
+    parton_tree->Branch("nParticles", &current_nParticles, "nParticles/I");
+    
+    // Create branches - particle arrays (12 fields: ityp, px, py, pz, xmass, gx, gy, gz, ft, istrg0, xstrg0, ystrg0)
+    parton_tree->Branch("pid", particle_pid, "pid[nParticles]/I");
+    parton_tree->Branch("px", particle_px, "px[nParticles]/D");
+    parton_tree->Branch("py", particle_py, "py[nParticles]/D");
+    parton_tree->Branch("pz", particle_pz, "pz[nParticles]/D");
+    parton_tree->Branch("mass", particle_mass, "mass[nParticles]/D");
+    parton_tree->Branch("x", particle_x, "x[nParticles]/D");
+    parton_tree->Branch("y", particle_y, "y[nParticles]/D");
+    parton_tree->Branch("z", particle_z, "z[nParticles]/D");
+    parton_tree->Branch("t", particle_t, "t[nParticles]/D");
+    parton_tree->Branch("istrg0", parton_istrg0, "istrg0[nParticles]/I");
+    parton_tree->Branch("xstrg0", parton_xstrg0, "xstrg0[nParticles]/D");
+    parton_tree->Branch("ystrg0", parton_ystrg0, "ystrg0[nParticles]/D");
+    
+    std::cout << "Parton initial ROOT interface initialized" << std::endl;
+}
+
+void finalize_parton_initial_root_() {
+    std::cout << "DEBUG: finalize_parton_initial_root_() called" << std::endl;
+    
+    if (parton_file && parton_tree) {
+        std::cout << "DEBUG: Parton Tree entries before write: " << parton_tree->GetEntries() << std::endl;
+        parton_file->cd();
+        parton_tree->Write();
+        parton_file->Close();
+        delete parton_file;
+        parton_file = nullptr;
+        parton_tree = nullptr;
+        
+        std::cout << "Parton initial ROOT interface finalized" << std::endl;
+    }
+}
+
+void write_parton_initial_event_header_(int* eventID, int* miss, int* nParticles) {
+    std::cout << "DEBUG: write_parton_initial_event_header_() called with eventID=" << *eventID 
+              << " miss=" << *miss << " nParticles=" << *nParticles << std::endl;
+    
+    current_eventID = *eventID;
+    current_miss = *miss;
+    current_nParticles = *nParticles;
+    
+    parton_particle_count = 0;
+    
+    // Initialize arrays
+    memset(particle_pid, 0, sizeof(particle_pid));
+    memset(particle_px, 0, sizeof(particle_px));
+    memset(particle_py, 0, sizeof(particle_py));
+    memset(particle_pz, 0, sizeof(particle_pz));
+    memset(particle_mass, 0, sizeof(particle_mass));
+    memset(particle_x, 0, sizeof(particle_x));
+    memset(particle_y, 0, sizeof(particle_y));
+    memset(particle_z, 0, sizeof(particle_z));
+    memset(particle_t, 0, sizeof(particle_t));
+    memset(parton_istrg0, 0, sizeof(parton_istrg0));
+    memset(parton_xstrg0, 0, sizeof(parton_xstrg0));
+    memset(parton_ystrg0, 0, sizeof(parton_ystrg0));
+}
+
+void write_parton_initial_particle_(int* pid, double* px, double* py, double* pz, double* mass,
+                                   double* x, double* y, double* z, double* t, 
+                                   int* istrg0, double* xstrg0, double* ystrg0) {
+    if (parton_particle_count >= MAX_PARTICLES) {
+        std::cerr << "ERROR: Too many parton particles, limit is " << MAX_PARTICLES << std::endl;
+        return;
+    }
+    
+    if (parton_particle_count < 3) {
+        std::cout << "DEBUG: write_parton_initial_particle_() particle " << (parton_particle_count + 1) 
+                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
+                  << " mass=" << *mass << std::endl;
+        std::cout << "  istrg0=" << *istrg0 << " xstrg0=" << *xstrg0 << " ystrg0=" << *ystrg0 << std::endl;
+    }
+    
+    particle_pid[parton_particle_count] = *pid;
+    particle_px[parton_particle_count] = *px;
+    particle_py[parton_particle_count] = *py;
+    particle_pz[parton_particle_count] = *pz;
+    particle_mass[parton_particle_count] = *mass;
+    particle_x[parton_particle_count] = *x;
+    particle_y[parton_particle_count] = *y;
+    particle_z[parton_particle_count] = *z;
+    particle_t[parton_particle_count] = *t;
+    parton_istrg0[parton_particle_count] = *istrg0;
+    parton_xstrg0[parton_particle_count] = *xstrg0;
+    parton_ystrg0[parton_particle_count] = *ystrg0;
+    
+    parton_particle_count++;
+    
+    if (parton_particle_count % 1000 == 0) {
+        std::cout << "DEBUG: Processed " << parton_particle_count << " parton particles" << std::endl;
+    }
+    
+    if (parton_particle_count == current_nParticles) {
+        if (parton_tree) {
+            parton_tree->Fill();
+            std::cout << "DEBUG: Parton Event " << current_eventID << " filled to ROOT tree with " 
+                      << parton_particle_count << " particles" << std::endl;
         }
     }
 }

@@ -1668,6 +1668,9 @@ c.....call ZPC for parton cascade
 clin-6/2009:
 c        WRITE (14, 395) ITEST, MUL, bimp, NELP,NINP,NELT,NINTHJ
         WRITE (14, 395) IAEVT, MISS, MUL, bimp, NELP,NINP,NELT,NINTHJ
+c        Write to ROOT file (online conversion for string melting mode)
+        call WRITE_ZPC_EVENT_HEADER(IAEVT, MISS, MUL, bimp, 
+     1       NELP, NINP, NELT, NINTHJ)
         itest=itest+1
 
         DO 1016 I = 1, MUL
@@ -1685,6 +1688,9 @@ c     &        XMASS5(I), LSTRG1(I), LPART1(I), FT5(I)
               write(14,211) ITYP5(I), PX5(I), PY5(I), PZ5(I), XMASS5(I),
      1             GX5(I), GY5(I), GZ5(I), FT5(I)
            endif
+c           Write to ROOT file
+           call WRITE_ZPC_PARTICLE(ITYP5(I), PX5(I), PY5(I), PZ5(I), 
+     1          XMASS5(I), GX5(I), GY5(I), GZ5(I), FT5(I))
 c
  1016   CONTINUE
 c 511    FORMAT(1X, 3F10.4, I6, 2F10.4)

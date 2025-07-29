@@ -901,8 +901,14 @@ c       save particle info for fixed time analysis
  1002   continue
 
 clin-6/2009
-        if(isoft.eq.1.and.(ioscar.eq.2.or.ioscar.eq.3))
-     1       write(92,*) iaevt,miss,mul
+        if(isoft.eq.1.and.(ioscar.eq.2.or.ioscar.eq.3)) then
+            write(92,*) iaevt,miss,mul
+        endif
+c       ROOT interface for string melting modes - write event header  
+        if((isoft.eq.3.or.isoft.eq.4.or.isoft.eq.5).and.
+     1     (ioscar.eq.2.or.ioscar.eq.3)) then
+            call WRITE_PARTON_INITIAL_EVENT_HEADER(iaevt,miss,mul)
+        endif
 
         do 1003 i = 1, mul
            energy = e(i)
@@ -948,6 +954,12 @@ clin-8/2015:
 clin-8/2015:
                  write(92,201) ityp(i),px(i),py(i),pz(i),xmass(i),
      1           gx(i),gy(i),gz(i),ft(i),istrg0(i),xstrg0(i),ystrg0(i)
+              endif
+c             ROOT interface - write particle data for string melting modes
+              if(isoft.eq.3.or.isoft.eq.4.or.isoft.eq.5) then
+                 call WRITE_PARTON_INITIAL_PARTICLE(ityp(i),px(i),py(i),
+     1           pz(i),xmass(i),gx(i),gy(i),gz(i),ft(i),istrg0(i),
+     2           xstrg0(i),ystrg0(i))
               endif
            endif
 clin-8/2015:

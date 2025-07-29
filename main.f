@@ -223,6 +223,12 @@ c
 c     Initialize online ROOT conversion
       call INIT_ROOT()
       write(6,*) 'ROOT conversion initialized'
+c     Initialize ZPC ROOT conversion
+      call INIT_ZPC_ROOT()
+      write(6,*) 'ZPC ROOT conversion initialized'
+c     Initialize parton initial ROOT conversion
+      call INIT_PARTON_INITIAL_ROOT()
+      write(6,*) 'Parton initial ROOT conversion initialized'
 c
 clin-5/2009 ctest off:
 c      call flowp(0)
@@ -329,6 +335,12 @@ c       call flowp(2)
 c       call iniflw(NEVNT,2)
 c       call frztm(NEVNT,2)
 c
+c      Finalize ZPC ROOT conversion
+       call FINALIZE_ZPC_ROOT()
+       write(6,*) 'ZPC ROOT conversion finalized'
+c      Finalize parton initial ROOT conversion
+       call FINALIZE_PARTON_INITIAL_ROOT()
+       write(6,*) 'Parton initial ROOT conversion finalized'
 c      Finalize online ROOT conversion
        call FINALIZE_ROOT()
        write(6,*) 'ROOT conversion finalized'
