@@ -1,0 +1,17 @@
+# AMPT作业参数配置文件 - quick测试
+# 格式: ISHLF ICOAL_METHOD
+# 总共 6 个作业 (6个参数组合 × 1个重复)
+# 每个作业500个事件，总计 3000 个事件
+
+# Job 000: ISHLF=0, ICOAL=1
+0 1
+# Job 001: ISHLF=5, ICOAL=1
+5 1
+# Job 002: ISHLF=0, ICOAL=2
+0 2
+# Job 003: ISHLF=0, ICOAL=3
+0 3
+# Job 004: ISHLF=5, ICOAL=2
+5 2
+# Job 005: ISHLF=5, ICOAL=3
+5 3
