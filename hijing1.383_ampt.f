@@ -1561,17 +1561,31 @@ c
 
 clin-2024 save hadrons before string melting (before ZPC):
         if(isoft.eq.4.or.isoft.eq.5) then
+c           Write to dat file (traditional output)
            WRITE(98,*) IAEVT, MISS, NATT, bimp, NELP,NINP,NELT,NINTHJ
+c           Write to ROOT file (online conversion)
+           call WRITE_HADRON_BEFORE_MELTING_EVENT_HEADER(IAEVT, MISS,
+     1          NATT, bimp, NELP, NINP, NELT, NINTHJ)
            do ihad=1,NATT
               if(dmax1(abs(GXAR(ihad)),abs(GYAR(ihad)),
      1             abs(GZAR(ihad)),abs(FTAR(ihad))).lt.9999) then
+c                 Write to dat file
                  WRITE(98,210) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
      1                PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
      2                GZAR(ihad),FTAR(ihad)
+c                 Write to ROOT file
+                 call WRITE_HADRON_BEFORE_MELTING_PARTICLE(ITYPAR(ihad),
+     1                PXAR(ihad),PYAR(ihad),PZAR(ihad),XMAR(ihad),
+     2                GXAR(ihad),GYAR(ihad),GZAR(ihad),FTAR(ihad))
               else
+c                 Write to dat file
                  WRITE(98,211) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
      1                PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
      2                GZAR(ihad),FTAR(ihad)
+c                 Write to ROOT file
+                 call WRITE_HADRON_BEFORE_MELTING_PARTICLE(ITYPAR(ihad),
+     1                PXAR(ihad),PYAR(ihad),PZAR(ihad),XMAR(ihad),
+     2                GXAR(ihad),GYAR(ihad),GZAR(ihad),FTAR(ihad))
               endif
            enddo
         endif

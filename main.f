@@ -229,6 +229,12 @@ c     Initialize ZPC ROOT conversion
 c     Initialize parton initial ROOT conversion
       call INIT_PARTON_INITIAL_ROOT()
       write(6,*) 'Parton initial ROOT conversion initialized'
+c     Initialize hadron before ART ROOT conversion
+      call INIT_HADRON_BEFORE_ART_ROOT()
+      write(6,*) 'Hadron before ART ROOT conversion initialized'
+c     Initialize hadron before melting ROOT conversion
+      call INIT_HADRON_BEFORE_MELTING_ROOT()
+      write(6,*) 'Hadron before melting ROOT conversion initialized'
 c
 clin-5/2009 ctest off:
 c      call flowp(0)
@@ -293,9 +299,9 @@ clin-2024 save hadrons after ZPC+coalescence, before ART:
           if(isoft.eq.4.or.isoft.eq.5) then
 c            Write to dat file (traditional output)
              WRITE(99,*) J, MISS, IAINT2(1), bimp, NELP,NINP,NELT,NINTHJ
-c            Write to ROOT file (online conversion) - TODO: implement hadron before ART
-c             call WRITE_HADRON_BEFORE_ART_EVENT_HEADER(J, MISS, 
-c     1            IAINT2(1), bimp, NELP, NINP, NELT, NINTHJ)
+c            Write to ROOT file (online conversion)
+             call WRITE_HADRON_BEFORE_ART_EVENT_HEADER(J, MISS, 
+     1            IAINT2(1), bimp, NELP, NINP, NELT, NINTHJ)
              do ihad=1,IAINT2(1)
                 if(dmax1(abs(GXAR(ihad)),abs(GYAR(ihad)),
      1               abs(GZAR(ihad)),abs(FTAR(ihad))).lt.9999) then
@@ -303,19 +309,19 @@ c                  Write to dat file
                    WRITE(99,210) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
      1                  PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
      2                  GZAR(ihad),FTAR(ihad)
-c                  Write to ROOT file - TODO: implement hadron before ART
-c                   call WRITE_HADRON_BEFORE_ART_PARTICLE(ITYPAR(ihad),
-c     1                  PXAR(ihad),PYAR(ihad),PZAR(ihad),XMAR(ihad),
-c     2                  GXAR(ihad),GYAR(ihad),GZAR(ihad),FTAR(ihad))
+c                  Write to ROOT file
+                   call WRITE_HADRON_BEFORE_ART_PARTICLE(ITYPAR(ihad),
+     1                  PXAR(ihad),PYAR(ihad),PZAR(ihad),XMAR(ihad),
+     2                  GXAR(ihad),GYAR(ihad),GZAR(ihad),FTAR(ihad))
                 else
 c                  Write to dat file
                    WRITE(99,211) ITYPAR(ihad),PXAR(ihad),PYAR(ihad),
      1                  PZAR(ihad),XMAR(ihad),GXAR(ihad),GYAR(ihad),
      2                  GZAR(ihad),FTAR(ihad)
-c                  Write to ROOT file - TODO: implement hadron before ART
-c                   call WRITE_HADRON_BEFORE_ART_PARTICLE(ITYPAR(ihad),
-c     1                  PXAR(ihad),PYAR(ihad),PZAR(ihad),XMAR(ihad),
-c     2                  GXAR(ihad),GYAR(ihad),GZAR(ihad),FTAR(ihad))
+c                  Write to ROOT file
+                   call WRITE_HADRON_BEFORE_ART_PARTICLE(ITYPAR(ihad),
+     1                  PXAR(ihad),PYAR(ihad),PZAR(ihad),XMAR(ihad),
+     2                  GXAR(ihad),GYAR(ihad),GZAR(ihad),FTAR(ihad))
                 endif
              enddo
           endif
@@ -341,6 +347,12 @@ c      Finalize ZPC ROOT conversion
 c      Finalize parton initial ROOT conversion
        call FINALIZE_PARTON_INITIAL_ROOT()
        write(6,*) 'Parton initial ROOT conversion finalized'
+c      Finalize hadron before ART ROOT conversion
+       call FINALIZE_HADRON_BEFORE_ART_ROOT()
+       write(6,*) 'Hadron before ART ROOT conversion finalized'
+c      Finalize hadron before melting ROOT conversion
+       call FINALIZE_HADRON_BEFORE_MELTING_ROOT()
+       write(6,*) 'Hadron before melting ROOT conversion finalized'
 c      Finalize online ROOT conversion
        call FINALIZE_ROOT()
        write(6,*) 'ROOT conversion finalized'

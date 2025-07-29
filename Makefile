@@ -43,7 +43,7 @@ $(TARGET): $(FOBJ) $(CXXOBJ)
 
 # Clean
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o $(TARGET) *.tmp
 
 # Clean all including ROOT files
 clean-all: clean

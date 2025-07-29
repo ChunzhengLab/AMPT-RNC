@@ -416,4 +416,249 @@ void write_parton_initial_particle_(int* pid, double* px, double* py, double* pz
     }
 }
 
+// ===== HADRONS BEFORE ART ROOT interface =====
+TFile* hadron_before_art_file = nullptr;
+TTree* hadron_before_art_tree = nullptr;
+int hadron_before_art_particle_count = 0;
+
+void init_hadron_before_art_root_() {
+    std::cout << "DEBUG: init_hadron_before_art_root_() called" << std::endl;
+    
+    hadron_before_art_file = new TFile("ana/hadron-before-art.root", "RECREATE");
+    if (!hadron_before_art_file || hadron_before_art_file->IsZombie()) {
+        std::cerr << "ERROR: Cannot create hadron before ART ROOT file" << std::endl;
+        return;
+    }
+    
+    hadron_before_art_tree = new TTree("hadron_before_art", "AMPT hadrons before ART cascade");
+    
+    // Create branches - event header (J(IAEVT), MISS, IAINT2(1), bimp, NELP, NINP, NELT, NINTHJ)
+    hadron_before_art_tree->Branch("eventID", &current_eventID, "eventID/I");
+    hadron_before_art_tree->Branch("miss", &current_miss, "miss/I");
+    hadron_before_art_tree->Branch("nParticles", &current_nParticles, "nParticles/I");
+    hadron_before_art_tree->Branch("impactParameter", &current_impactParameter, "impactParameter/D");
+    hadron_before_art_tree->Branch("nelp", &current_nelp, "nelp/I");
+    hadron_before_art_tree->Branch("ninp", &current_ninp, "ninp/I");
+    hadron_before_art_tree->Branch("nelt", &current_nelt, "nelt/I");
+    hadron_before_art_tree->Branch("ninthj", &current_ninthj, "ninthj/I");
+    
+    // Create branches - particle arrays (standard 9 fields)
+    hadron_before_art_tree->Branch("pid", particle_pid, "pid[nParticles]/I");
+    hadron_before_art_tree->Branch("px", particle_px, "px[nParticles]/D");
+    hadron_before_art_tree->Branch("py", particle_py, "py[nParticles]/D");
+    hadron_before_art_tree->Branch("pz", particle_pz, "pz[nParticles]/D");
+    hadron_before_art_tree->Branch("mass", particle_mass, "mass[nParticles]/D");
+    hadron_before_art_tree->Branch("x", particle_x, "x[nParticles]/D");
+    hadron_before_art_tree->Branch("y", particle_y, "y[nParticles]/D");
+    hadron_before_art_tree->Branch("z", particle_z, "z[nParticles]/D");
+    hadron_before_art_tree->Branch("t", particle_t, "t[nParticles]/D");
+    
+    std::cout << "Hadron before ART ROOT interface initialized" << std::endl;
+}
+
+void finalize_hadron_before_art_root_() {
+    std::cout << "DEBUG: finalize_hadron_before_art_root_() called" << std::endl;
+    
+    if (hadron_before_art_file && hadron_before_art_tree) {
+        std::cout << "DEBUG: Hadron before ART Tree entries before write: " << hadron_before_art_tree->GetEntries() << std::endl;
+        hadron_before_art_file->cd();
+        hadron_before_art_tree->Write();
+        hadron_before_art_file->Close();
+        delete hadron_before_art_file;
+        hadron_before_art_file = nullptr;
+        hadron_before_art_tree = nullptr;
+        
+        std::cout << "Hadron before ART ROOT interface finalized" << std::endl;
+    }
+}
+
+void write_hadron_before_art_event_header_(int* eventID, int* miss, int* nParticles, double* b,
+                                           int* nelp, int* ninp, int* nelt, int* ninthj) {
+    std::cout << "DEBUG: write_hadron_before_art_event_header_() called with eventID=" << *eventID 
+              << " miss=" << *miss << " nParticles=" << *nParticles << std::endl;
+    
+    current_eventID = *eventID;
+    current_miss = *miss;
+    current_nParticles = *nParticles;
+    current_impactParameter = *b;
+    current_nelp = *nelp;
+    current_ninp = *ninp;
+    current_nelt = *nelt;
+    current_ninthj = *ninthj;
+    
+    hadron_before_art_particle_count = 0;
+    
+    // Initialize arrays
+    memset(particle_pid, 0, sizeof(particle_pid));
+    memset(particle_px, 0, sizeof(particle_px));
+    memset(particle_py, 0, sizeof(particle_py));
+    memset(particle_pz, 0, sizeof(particle_pz));
+    memset(particle_mass, 0, sizeof(particle_mass));
+    memset(particle_x, 0, sizeof(particle_x));
+    memset(particle_y, 0, sizeof(particle_y));
+    memset(particle_z, 0, sizeof(particle_z));
+    memset(particle_t, 0, sizeof(particle_t));
+}
+
+void write_hadron_before_art_particle_(int* pid, double* px, double* py, double* pz, double* mass,
+                                       double* x, double* y, double* z, double* t) {
+    if (hadron_before_art_particle_count >= MAX_PARTICLES) {
+        std::cerr << "ERROR: Too many hadron before ART particles, limit is " << MAX_PARTICLES << std::endl;
+        return;
+    }
+    
+    if (hadron_before_art_particle_count < 3) {
+        std::cout << "DEBUG: write_hadron_before_art_particle_() particle " << (hadron_before_art_particle_count + 1) 
+                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
+                  << " mass=" << *mass << std::endl;
+    }
+    
+    particle_pid[hadron_before_art_particle_count] = *pid;
+    particle_px[hadron_before_art_particle_count] = *px;
+    particle_py[hadron_before_art_particle_count] = *py;
+    particle_pz[hadron_before_art_particle_count] = *pz;
+    particle_mass[hadron_before_art_particle_count] = *mass;
+    particle_x[hadron_before_art_particle_count] = *x;
+    particle_y[hadron_before_art_particle_count] = *y;
+    particle_z[hadron_before_art_particle_count] = *z;
+    particle_t[hadron_before_art_particle_count] = *t;
+    
+    hadron_before_art_particle_count++;
+    
+    if (hadron_before_art_particle_count % 1000 == 0) {
+        std::cout << "DEBUG: Processed " << hadron_before_art_particle_count << " hadron before ART particles" << std::endl;
+    }
+    
+    if (hadron_before_art_particle_count == current_nParticles) {
+        if (hadron_before_art_tree) {
+            hadron_before_art_tree->Fill();
+            std::cout << "DEBUG: Hadron before ART Event " << current_eventID << " filled to ROOT tree with " 
+                      << hadron_before_art_particle_count << " particles" << std::endl;
+        }
+    }
+}
+
+// ===== HADRON BEFORE MELTING ROOT interface =====
+TFile* hadron_before_melting_file = nullptr;
+TTree* hadron_before_melting_tree = nullptr;
+int hadron_before_melting_particle_count = 0;
+
+void init_hadron_before_melting_root_() {
+    std::cout << "DEBUG: init_hadron_before_melting_root_() called" << std::endl;
+    
+    hadron_before_melting_file = new TFile("ana/hadron-before-melting.root", "RECREATE");
+    if (!hadron_before_melting_file || hadron_before_melting_file->IsZombie()) {
+        std::cerr << "ERROR: Cannot create hadron-before-melting.root file" << std::endl;
+        return;
+    }
+    
+    hadron_before_melting_tree = new TTree("hadron_before_melting", "AMPT hadrons before string melting");
+    
+    // Event header branches
+    hadron_before_melting_tree->Branch("eventID", &current_eventID, "eventID/I");
+    hadron_before_melting_tree->Branch("miss", &current_miss, "miss/I");
+    hadron_before_melting_tree->Branch("nParticles", &current_nParticles, "nParticles/I");
+    hadron_before_melting_tree->Branch("impactParameter", &current_impactParameter, "impactParameter/D");
+    hadron_before_melting_tree->Branch("nelp", &current_nelp, "nelp/I");
+    hadron_before_melting_tree->Branch("ninp", &current_ninp, "ninp/I");
+    hadron_before_melting_tree->Branch("nelt", &current_nelt, "nelt/I");
+    hadron_before_melting_tree->Branch("ninthj", &current_ninthj, "ninthj/I");
+    
+    // Particle data branches
+    hadron_before_melting_tree->Branch("pid", particle_pid, "pid[nParticles]/I");
+    hadron_before_melting_tree->Branch("px", particle_px, "px[nParticles]/D");
+    hadron_before_melting_tree->Branch("py", particle_py, "py[nParticles]/D");
+    hadron_before_melting_tree->Branch("pz", particle_pz, "pz[nParticles]/D");
+    hadron_before_melting_tree->Branch("mass", particle_mass, "mass[nParticles]/D");
+    hadron_before_melting_tree->Branch("x", particle_x, "x[nParticles]/D");
+    hadron_before_melting_tree->Branch("y", particle_y, "y[nParticles]/D");
+    hadron_before_melting_tree->Branch("z", particle_z, "z[nParticles]/D");
+    hadron_before_melting_tree->Branch("t", particle_t, "t[nParticles]/D");
+    
+    std::cout << "Hadron before melting ROOT interface initialized" << std::endl;
+}
+
+void finalize_hadron_before_melting_root_() {
+    std::cout << "DEBUG: finalize_hadron_before_melting_root_() called" << std::endl;
+    
+    if (hadron_before_melting_file && hadron_before_melting_tree) {
+        std::cout << "DEBUG: Hadron before melting Tree entries before write: " << hadron_before_melting_tree->GetEntries() << std::endl;
+        hadron_before_melting_file->cd();
+        hadron_before_melting_tree->Write();
+        hadron_before_melting_file->Close();
+        delete hadron_before_melting_file;
+        hadron_before_melting_file = nullptr;
+        hadron_before_melting_tree = nullptr;
+        
+        std::cout << "Hadron before melting ROOT interface finalized" << std::endl;
+    }
+}
+
+void write_hadron_before_melting_event_header_(int* eventID, int* miss, int* nParticles, double* b,
+                                             int* nelp, int* ninp, int* nelt, int* ninthj) {
+    std::cout << "DEBUG: write_hadron_before_melting_event_header_() called with eventID=" << *eventID 
+              << " miss=" << *miss << " nParticles=" << *nParticles << " b=" << *b 
+              << " nelp=" << *nelp << " ninp=" << *ninp << " nelt=" << *nelt << " ninthj=" << *ninthj << std::endl;
+    
+    current_eventID = *eventID;
+    current_miss = *miss;
+    current_nParticles = *nParticles;
+    current_impactParameter = *b;
+    current_nelp = *nelp;
+    current_ninp = *ninp;
+    current_nelt = *nelt;
+    current_ninthj = *ninthj;
+    
+    hadron_before_melting_particle_count = 0;
+    
+    // Clear arrays
+    memset(particle_pid, 0, sizeof(particle_pid));
+    memset(particle_px, 0, sizeof(particle_px));
+    memset(particle_py, 0, sizeof(particle_py));
+    memset(particle_pz, 0, sizeof(particle_pz));
+    memset(particle_mass, 0, sizeof(particle_mass));
+    memset(particle_x, 0, sizeof(particle_x));
+    memset(particle_y, 0, sizeof(particle_y));
+    memset(particle_z, 0, sizeof(particle_z));
+    memset(particle_t, 0, sizeof(particle_t));
+}
+
+void write_hadron_before_melting_particle_(int* pid, double* px, double* py, double* pz, double* mass,
+                                         double* x, double* y, double* z, double* t) {
+    if (hadron_before_melting_particle_count >= MAX_PARTICLES) {
+        std::cerr << "ERROR: Too many hadron before melting particles, limit is " << MAX_PARTICLES << std::endl;
+        return;
+    }
+    
+    if (hadron_before_melting_particle_count < 3) {
+        std::cout << "DEBUG: write_hadron_before_melting_particle_() particle " << (hadron_before_melting_particle_count + 1) 
+                  << " pid=" << *pid << " px=" << *px << " py=" << *py << " pz=" << *pz 
+                  << " mass=" << *mass << std::endl;
+    }
+    
+    particle_pid[hadron_before_melting_particle_count] = *pid;
+    particle_px[hadron_before_melting_particle_count] = *px;
+    particle_py[hadron_before_melting_particle_count] = *py;
+    particle_pz[hadron_before_melting_particle_count] = *pz;
+    particle_mass[hadron_before_melting_particle_count] = *mass;
+    particle_x[hadron_before_melting_particle_count] = *x;
+    particle_y[hadron_before_melting_particle_count] = *y;
+    particle_z[hadron_before_melting_particle_count] = *z;
+    particle_t[hadron_before_melting_particle_count] = *t;
+    
+    hadron_before_melting_particle_count++;
+    
+    if (hadron_before_melting_particle_count % 1000 == 0) {
+        std::cout << "DEBUG: Processed " << hadron_before_melting_particle_count << " hadron before melting particles" << std::endl;
+    }
+    
+    if (hadron_before_melting_particle_count == current_nParticles) {
+        if (hadron_before_melting_tree) {
+            hadron_before_melting_tree->Fill();
+            std::cout << "DEBUG: Hadron before melting Event " << current_eventID << " filled to ROOT tree with " 
+                      << hadron_before_melting_particle_count << " particles" << std::endl;
+        }
+    }
+}
+
 } // extern "C"
