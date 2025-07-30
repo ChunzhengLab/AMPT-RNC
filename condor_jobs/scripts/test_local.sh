@@ -65,7 +65,7 @@ if [ ! -f "analysisAll_flexible" ]; then
 fi
 
 # 创建或使用测试目录
-TEST_DIR="condor_jobs/outputs/local_test"
+TEST_DIR="../outputs/local_test"
 if [ "$ANALYSIS_ONLY" = true ]; then
     # 仅分析模式：检查目录是否存在
     if [ ! -d "$TEST_DIR" ]; then
@@ -88,7 +88,7 @@ ZPC_SEED=$((1 + $RANDOM % 100))
 echo "随机种子: HIJING=$HIJING_SEED, ZPC=$ZPC_SEED"
 
 # 生成测试配置文件
-TEMPLATE_FILE="condor_jobs/templates/input.ampt.template"
+TEMPLATE_FILE="../templates/input.ampt.template"
 CONFIG_FILE="$TEST_DIR/input.ampt"
 
 if [ ! -f "$TEMPLATE_FILE" ]; then
