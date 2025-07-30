@@ -14,10 +14,33 @@ NC='\033[0m'
 
 # 配置
 LOCAL_DIR="$(dirname "$0")"  # 当前脚本所在目录
-REMOTE_HOST="hirg"
-REMOTE_DIR="/storage/fdunphome/wangchunzheng/AMPT-RNC"
 
-echo -e "${BLUE}=== 同步到farm服务器 ===${NC}"
+# 用户选择目标服务器
+echo -e "${YELLOW}请选择目标服务器:${NC}"
+echo "1) napp - SLURM集群"
+echo "2) hirg - HTCondor集群"
+echo -n "请输入选择 (napp/hirg): "
+read choice
+
+case "$choice" in
+    "napp"|"1")
+        REMOTE_HOST="napp"
+        REMOTE_DIR="/home/chunzheng/AMPT-RNC"
+        SCHEDULER="SLURM"
+        ;;
+    "hirg"|"2")
+        REMOTE_HOST="hirg"
+        REMOTE_DIR="/storage/fdunphome/wangchunzheng/AMPT-RNC"
+        SCHEDULER="HTCondor"
+        ;;
+    *)
+        echo -e "${RED}无效选择！请输入 napp 或 hirg${NC}"
+        exit 1
+        ;;
+esac
+
+echo -e "${BLUE}=== 同步到 $SCHEDULER 集群 ===${NC}"
+echo "目标服务器: $REMOTE_HOST ($SCHEDULER)"
 echo "本地目录: $LOCAL_DIR"
 echo "远程目录: $REMOTE_HOST:$REMOTE_DIR"
 echo
@@ -53,6 +76,7 @@ rsync -avz --progress \
     --exclude='*.err' \
     --exclude='condor_jobs/outputs/' \
     --exclude='condor_jobs/results/' \
+    --exclude='slurm_jobs/outputs/' \
     --exclude='ana/' \
     --exclude='ampt' \
     --exclude='analysisAll' \
@@ -83,4 +107,9 @@ echo -e "${BLUE}=== 同步完成 ===${NC}"
 echo "提示: 同步后需要在服务器上重新编译程序"
 echo "  ssh $REMOTE_HOST"
 echo "  cd $REMOTE_DIR"
-echo "  ./condor_jobs/scripts/prepare_binaries.sh"
+
+if [ "$SCHEDULER" = "SLURM" ]; then
+    echo "  ./slurm_jobs/scripts/prepare_binaries.sh"
+else
+    echo "  ./condor_jobs/scripts/prepare_binaries.sh"
+fi
