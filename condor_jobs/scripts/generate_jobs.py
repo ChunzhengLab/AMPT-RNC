@@ -30,31 +30,21 @@ def generate_custom_params(ishlf_list, icoal_list, output_file="config/job_param
     print(f"输出文件: {output_file}")
     return len(ishlf_list)
 
-def generate_subset_params(mode="quick", output_file=None, jobs_per_combo=1):
-    """生成特定子集的参数组合"""
+def generate_params(output_file=None, jobs_per_combo=1):
+    """生成AMPT作业参数组合"""
     
     if output_file is None:
         output_file = "config/job_params.txt"
     
-    if mode == "ampt":
-        # AMPT参数组合: 关键的打乱和聚合方法组合
-        params = [
-            (0, 1),  # 基准: 不打乱 + 经典聚合
-            (5, 1),  # u+d+s打乱 + 经典聚合
-            (0, 2),  # 不打乱 + BM竞争聚合
-            (0, 3),  # 不打乱 + 随机聚合
-            (5, 2),  # u+d+s打乱 + BM竞争聚合
-            (5, 3),  # u+d+s打乱 + 随机聚合
-        ]
-    elif mode == "reshuffle":
-        # 只测试打乱效应 (固定经典聚合, 只用0和5)
-        params = [(i, 1) for i in [0, 5]]
-    elif mode == "coalescence":
-        # 只测试聚合方式 (固定不打乱)
-        params = [(0, i) for i in [1, 2, 3]]
-    else:
-        print(f"未知模式: {mode}")
-        return 0
+    # AMPT参数组合: 关键的打乱和聚合方法组合
+    params = [
+        (0, 1),  # 基准: 不打乱 + 经典聚合
+        (5, 1),  # u+d+s打乱 + 经典聚合
+        (0, 2),  # 不打乱 + BM竞争聚合
+        (0, 3),  # 不打乱 + 随机聚合
+        (5, 2),  # u+d+s打乱 + BM竞争聚合
+        (5, 3),  # u+d+s打乱 + 随机聚合
+    ]
     
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
@@ -93,7 +83,7 @@ def main():
     jobs_per_combo = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 1
     
     # 生成AMPT作业参数
-    generate_subset_params("ampt", jobs_per_combo=jobs_per_combo)
+    generate_params(jobs_per_combo=jobs_per_combo)
 
 if __name__ == "__main__":
     main()

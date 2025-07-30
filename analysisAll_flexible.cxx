@@ -135,8 +135,8 @@ map<string, ROOTFormat> predefined_formats = {
 // Data reader class - handles different ROOT formats
 class AMPTDataReader {
 private:
-    TChain* chain;
     ROOTFormat format;
+    TChain* chain;
     
     // Branch variables - using void* for flexibility
     Int_t nParticles;
@@ -392,6 +392,12 @@ int main(int argc, char** argv) {
     map<PIDPairs, TH1D*> map_h1_angCorr_momentum_pidpair;
     map<PIDPairs, TH1D*> map_h1_angCorr_spatial_pidpair;
     
+    // TProfiles for delta and gamma observables
+    TProfile* p_delta_momentum = nullptr;
+    TProfile* p_gamma_momentum = nullptr;
+    TProfile* p_delta_spatial = nullptr;
+    TProfile* p_gamma_spatial = nullptr;
+    
     // Initialize correlation histograms  
     for (size_t i = 0; i < pid_names->size(); i++) {
         for (size_t j = i; j < pid_names->size(); j++) {
@@ -403,6 +409,45 @@ int main(int argc, char** argv) {
             
             map_h1_angCorr_momentum_pidpair[pidpair] = new TH1D(Form("h1_angCorr_momentum_%s", pair_name.c_str()), "", 32, -TMath::Pi()/2, 3*TMath::Pi()/2);
             map_h1_angCorr_spatial_pidpair[pidpair] = new TH1D(Form("h1_angCorr_spatial_%s", pair_name.c_str()), "", 32, -TMath::Pi()/2, 3*TMath::Pi()/2);
+        }
+    }
+    
+    // Initialize TProfiles for delta and gamma observables
+    // Calculate total number of unique pairs for bin size
+    int nPairTypes = (pid_names->size() * (pid_names->size() + 1)) / 2;
+    
+    // Create TProfiles with bins for each pair type
+    string data_label = isHadron ? "hadron" : "parton";
+    p_delta_momentum = new TProfile(Form("p_delta_momentum_%s", data_label.c_str()), 
+                                    "Delta = <cos(phi_1 - phi_2)> in momentum space;Pair type;Delta", 
+                                    nPairTypes, 0, nPairTypes);
+    p_gamma_momentum = new TProfile(Form("p_gamma_momentum_%s", data_label.c_str()), 
+                                    "Gamma = <cos(phi_1 + phi_2)> in momentum space;Pair type;Gamma", 
+                                    nPairTypes, 0, nPairTypes);
+    p_delta_spatial = new TProfile(Form("p_delta_spatial_%s", data_label.c_str()), 
+                                   "Delta = <cos(phi_1 - phi_2)> in spatial coordinates;Pair type;Delta", 
+                                   nPairTypes, 0, nPairTypes);
+    p_gamma_spatial = new TProfile(Form("p_gamma_spatial_%s", data_label.c_str()), 
+                                   "Gamma = <cos(phi_1 + phi_2)> in spatial coordinates;Pair type;Gamma", 
+                                   nPairTypes, 0, nPairTypes);
+    
+    // Set bin labels
+    int binIndex = 1;
+    map<PIDPairs, int> pidpair_to_bin;
+    for (size_t i = 0; i < pid_names->size(); i++) {
+        for (size_t j = i; j < pid_names->size(); j++) {
+            int pid_i = (*pid_codes)[i];
+            int pid_j = (*pid_codes)[j];
+            PIDPairs pidpair = make_pair(min(pid_i, pid_j), max(pid_i, pid_j));
+            
+            string pair_label = (*pid_names)[i] + "-" + (*pid_names)[j];
+            p_delta_momentum->GetXaxis()->SetBinLabel(binIndex, pair_label.c_str());
+            p_gamma_momentum->GetXaxis()->SetBinLabel(binIndex, pair_label.c_str());
+            p_delta_spatial->GetXaxis()->SetBinLabel(binIndex, pair_label.c_str());
+            p_gamma_spatial->GetXaxis()->SetBinLabel(binIndex, pair_label.c_str());
+            
+            pidpair_to_bin[pidpair] = binIndex;
+            binIndex++;
         }
     }
     
@@ -490,6 +535,36 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        
+        // Calculate delta and gamma observables for all centralities
+        for (size_t iTrk = 0; iTrk < pid_trks.size(); iTrk++) {
+            int pdg_i = pid_trks[iTrk];
+            float phi_momentum_i = p3_trks[iTrk].Phi();
+            float phi_spatial_i = x3_trks[iTrk].Phi();
+            
+            for (size_t jTrk = iTrk + 1; jTrk < pid_trks.size(); jTrk++) {
+                int pdg_j = pid_trks[jTrk];
+                float phi_momentum_j = p3_trks[jTrk].Phi();
+                float phi_spatial_j = x3_trks[jTrk].Phi();
+                
+                PIDPairs pidpair = make_pair(min(pdg_i, pdg_j), max(pdg_i, pdg_j));
+                int bin = pidpair_to_bin[pidpair];
+                
+                // Delta = <cos(phi_1 - phi_2)>
+                float delta_momentum = cos(phi_momentum_i - phi_momentum_j);
+                float delta_spatial = cos(phi_spatial_i - phi_spatial_j);
+                
+                // Gamma = <cos(phi_1 + phi_2)>
+                float gamma_momentum = cos(phi_momentum_i + phi_momentum_j);
+                float gamma_spatial = cos(phi_spatial_i + phi_spatial_j);
+                
+                // Fill TProfiles
+                p_delta_momentum->Fill(bin - 0.5, delta_momentum);
+                p_gamma_momentum->Fill(bin - 0.5, gamma_momentum);
+                p_delta_spatial->Fill(bin - 0.5, delta_spatial);
+                p_gamma_spatial->Fill(bin - 0.5, gamma_spatial);
+            }
+        }
     }
     
     // Save output
@@ -509,6 +584,12 @@ int main(int argc, char** argv) {
     
     for (auto& pair : map_h1_angCorr_momentum_pidpair) pair.second->Write();
     for (auto& pair : map_h1_angCorr_spatial_pidpair) pair.second->Write();
+    
+    // Write delta and gamma profiles
+    p_delta_momentum->Write();
+    p_gamma_momentum->Write();
+    p_delta_spatial->Write();
+    p_gamma_spatial->Write();
     
     outFile->Close();
     

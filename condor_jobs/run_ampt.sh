@@ -9,6 +9,11 @@
 # ----------------------------
 echo "=== AMPT JOB STARTED [$(date)] ==="
 
+# 激活conda环境
+source /storage/fdunphome/wangchunzheng/miniconda3/etc/profile.d/conda.sh
+conda activate cpp_dev
+echo "Conda环境已激活: cpp_dev"
+
 # 设置项目根目录
 PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 cd "$PROJECT_DIR" || exit 1
@@ -243,6 +248,9 @@ fi
 # ----------------------------
 cd "$PROJECT_DIR"
 rm -rf "$WORK_DIR"
+
+# 退出conda环境
+conda deactivate
 
 echo "=== AMPT JOB COMPLETED [$(date)] ==="
 echo "作业$JOB_ID 完成，结果保存在 condor_jobs/outputs/results/"

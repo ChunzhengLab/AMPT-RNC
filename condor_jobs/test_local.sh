@@ -9,6 +9,11 @@
 #   ./test_local.sh --analysis-only  # 同上
 # ==============================================================================
 
+# 激活conda环境
+source /storage/fdunphome/wangchunzheng/miniconda3/etc/profile.d/conda.sh
+conda activate cpp_dev
+echo "Conda环境已激活: cpp_dev"
+
 PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 cd "$PROJECT_DIR"
 
@@ -286,3 +291,6 @@ echo
 
 # 返回项目根目录
 cd "$PROJECT_DIR"
+
+# 退出conda环境
+conda deactivate

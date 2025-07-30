@@ -5,6 +5,11 @@
 # 在提交HTCondor作业前运行此脚本，确保所有程序已编译
 # ==============================================================================
 
+# 激活conda环境
+source /storage/fdunphome/wangchunzheng/miniconda3/etc/profile.d/conda.sh
+conda activate cpp_dev
+echo "Conda环境已激活: cpp_dev"
+
 PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 
 # 颜色定义
@@ -87,5 +92,8 @@ fi
 echo -e "${GREEN}=== 准备完成！===${NC}"
 echo "现在可以提交HTCondor作业:"
 echo "  cd condor_jobs"
-echo "  python3 scripts/generate_jobs.py quick"
+echo "  python3 scripts/generate_jobs.py"
 echo "  condor_submit ampt.sub"
+
+# 退出conda环境
+conda deactivate

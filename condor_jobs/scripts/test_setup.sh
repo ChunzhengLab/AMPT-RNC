@@ -4,6 +4,11 @@
 # AMPT Condor提交系统测试脚本
 # ==============================================================================
 
+# 激活conda环境
+source /storage/fdunphome/wangchunzheng/miniconda3/etc/profile.d/conda.sh
+conda activate cpp_dev
+echo "Conda环境已激活: cpp_dev"
+
 PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
 JOBS_DIR="$PROJECT_DIR/condor_jobs"
 
@@ -125,13 +130,13 @@ echo -e "${YELLOW}4. 测试参数生成...${NC}"
 cd "$JOBS_DIR"
 
 # 测试Python脚本
-if python3 scripts/generate_jobs.py quick > /tmp/test_params.log 2>&1; then
+if python3 scripts/generate_jobs.py > /tmp/test_params.log 2>&1; then
     echo -e "  ${GREEN}✓${NC} 参数生成脚本工作正常"
     
     # 检查生成的文件
-    if [ -f "config/job_params_quick.txt" ]; then
-        param_count=$(grep -v "^#" config/job_params_quick.txt | grep -v "^$" | wc -l)
-        echo -e "  ${GREEN}✓${NC} 生成了 $param_count 个快速测试参数"
+    if [ -f "config/job_params.txt" ]; then
+        param_count=$(grep -v "^#" config/job_params.txt | grep -v "^$" | wc -l)
+        echo -e "  ${GREEN}✓${NC} 生成了 $param_count 个作业参数"
     fi
 else
     echo -e "  ${RED}✗${NC} 参数生成脚本失败:"
@@ -294,3 +299,6 @@ echo "   ./scripts/monitor_jobs.sh kill            # 杀死所有作业"
 echo "   ./scripts/monitor_jobs.sh clean           # 清理文件"
 
 cd "$PROJECT_DIR"
+
+# 退出conda环境
+conda deactivate
