@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 AMPT任务参数生成脚本
 用于生成不同的ISHLF和ICOAL_METHOD参数组合
@@ -7,6 +8,10 @@ AMPT任务参数生成脚本
 import os
 import sys
 from itertools import product
+
+# 设置标准输出编码
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
 def generate_custom_params(ishlf_list, icoal_list, output_file="config/job_params_custom.txt"):
@@ -18,16 +23,16 @@ def generate_custom_params(ishlf_list, icoal_list, output_file="config/job_param
         
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write("# AMPT作业参数配置文件 - 自定义组合\n")
         f.write("# 格式: ISHLF ICOAL_METHOD\n\n")
         
         for i, (ishlf, icoal) in enumerate(zip(ishlf_list, icoal_list)):
-            f.write(f"# Job {i:03d}\n")
-            f.write(f"{ishlf} {icoal}\n")
+            f.write("# Job {:03d}\n".format(i))
+            f.write("{} {}\n".format(ishlf, icoal))
     
-    print(f"生成了 {len(ishlf_list)} 个自定义作业参数")
-    print(f"输出文件: {output_file}")
+    print("生成了 {} 个自定义作业参数".format(len(ishlf_list)))
+    print("输出文件: {}".format(output_file))
     return len(ishlf_list)
 
 def generate_params(output_file=None, jobs_per_combo=1):
@@ -48,25 +53,16 @@ def generate_params(output_file=None, jobs_per_combo=1):
     
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
-    with open(output_file, 'w') as f:
-        f.write("# AMPT作业参数配置文件\n")
-        f.write("# 格式: ISHLF ICOAL_METHOD\n")
-        total_jobs = len(params) * jobs_per_combo
-        f.write(f"# 总共 {total_jobs} 个作业 ({len(params)}个参数组合 × {jobs_per_combo}个重复)\n")
-        f.write(f"# 每个作业200个事件，总计 {total_jobs * 200} 个事件\n\n")
-        
+    with open(output_file, 'w', encoding='utf-8') as f:
+        # 只输出数据行，避免HTCondor解析问题
         job_id = 0
         for ishlf, icoal in params:
             for repeat in range(jobs_per_combo):
-                if jobs_per_combo > 1:
-                    f.write(f"# Job {job_id:03d}: ISHLF={ishlf}, ICOAL={icoal} (重复 {repeat+1}/{jobs_per_combo})\n")
-                else:
-                    f.write(f"# Job {job_id:03d}: ISHLF={ishlf}, ICOAL={icoal}\n")
-                f.write(f"{ishlf} {icoal}\n")
+                f.write("{} {}\n".format(ishlf, icoal))
                 job_id += 1
     
-    print(f"生成了 {job_id} 个AMPT作业参数")
-    print(f"输出文件: {output_file}")
+    print("生成了 {} 个AMPT作业参数".format(job_id))
+    print("输出文件: {}".format(output_file))
     return job_id
 
 def main():

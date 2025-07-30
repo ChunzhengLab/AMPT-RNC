@@ -1,0 +1,24 @@
+# ==============================================================================
+# HTCondor最小化测试提交脚本
+# ==============================================================================
+universe       = vanilla
+
+# 基本配置
+executable     = test_minimal.sh
+arguments      = $(Process)
+
+# 日志配置
+output         = outputs/logs/test_$(Process).out
+error          = outputs/logs/test_$(Process).err
+log            = outputs/logs/test_$(Process).log
+
+# 传输配置
+should_transfer_files   = YES
+transfer_executable     = True
+when_to_transfer_output = ON_EXIT
+
+# 环境变量
+environment = "PROJECT_DIR=/storage/fdunphome/wangchunzheng/AMPT-RNC"
+
+# 提交3个测试作业
+queue 3

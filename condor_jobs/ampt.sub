@@ -12,11 +12,6 @@ output         = outputs/logs/job_$(Process).out
 error          = outputs/logs/job_$(Process).err
 log            = outputs/logs/job_$(Process).log
 
-# 资源请求
-request_cpus   = 1
-request_memory = 2GB
-request_disk   = 5GB
-
 # 执行策略
 should_transfer_files   = YES
 transfer_executable     = True
@@ -24,7 +19,7 @@ transfer_input_files    = ../ampt,../analysisAll_flexible,templates/input.ampt.t
 when_to_transfer_output = ON_EXIT
 
 # 环境变量
-environment = "PROJECT_DIR=/Users/wangchunzheng/works/Models/Ampt-v1.26t9b-v2.26t9b"
+environment = "PROJECT_DIR=/storage/fdunphome/wangchunzheng/AMPT-RNC"
 
 # 提交配置 - 从参数文件读取任务列表
 # 格式: ISHLF ICOAL_METHOD
