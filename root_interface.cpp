@@ -509,6 +509,9 @@ void write_hadron_before_art_particle_(int* pid, double* px, double* py, double*
         if (hadron_before_art_tree) {
             hadron_before_art_tree->Fill();
         }
+        
+        // Perform real-time analysis on completed hadron-before-art event
+        analyze_hadron_before_art_event_();
     }
 }
 
@@ -621,33 +624,48 @@ void write_hadron_before_melting_particle_(int* pid, double* px, double* py, dou
         if (hadron_before_melting_tree) {
             hadron_before_melting_tree->Fill();
         }
+        
+        // Perform real-time analysis on completed hadron-before-melting event
+        analyze_hadron_before_melting_event_();
     }
 }
 
 // ===== Real-time analysis implementation =====
 void init_analysis_() {
-    // Initialize analysis objects for different data streams
+    // Initialize analysis objects for all 5 data streams
     if (!g_analysis_ampt) {
         g_analysis_ampt = new AnalysisCore();
-        g_analysis_ampt->Initialize(true);  // hadron mode
+        g_analysis_ampt->Initialize(true, "ampt");  // hadron mode
         std::cout << "Real-time analysis for AMPT data initialized" << std::endl;
     }
     
     if (!g_analysis_zpc) {
         g_analysis_zpc = new AnalysisCore();
-        g_analysis_zpc->Initialize(false);  // parton mode for ZPC
+        g_analysis_zpc->Initialize(false, "zpc");  // parton mode for ZPC
         std::cout << "Real-time analysis for ZPC data initialized" << std::endl;
     }
     
     if (!g_analysis_parton) {
         g_analysis_parton = new AnalysisCore();
-        g_analysis_parton->Initialize(false);  // parton mode
+        g_analysis_parton->Initialize(false, "parton");  // parton mode
         std::cout << "Real-time analysis for Parton data initialized" << std::endl;
+    }
+    
+    if (!g_analysis_hadron_before_art) {
+        g_analysis_hadron_before_art = new AnalysisCore();
+        g_analysis_hadron_before_art->Initialize(true, "hadron_before_art");  // hadron mode
+        std::cout << "Real-time analysis for Hadron-before-ART data initialized" << std::endl;
+    }
+    
+    if (!g_analysis_hadron_before_melting) {
+        g_analysis_hadron_before_melting = new AnalysisCore();
+        g_analysis_hadron_before_melting->Initialize(true, "hadron_before_melting");  // hadron mode
+        std::cout << "Real-time analysis for Hadron-before-melting data initialized" << std::endl;
     }
 }
 
 void finalize_analysis_() {
-    // Save analysis results for all data streams
+    // Save analysis results for all 5 data streams
     if (g_analysis_ampt) {
         g_analysis_ampt->SaveResults("ana/ampt_analysis.root");
         delete g_analysis_ampt;
@@ -669,7 +687,21 @@ void finalize_analysis_() {
         std::cout << "Parton analysis results saved" << std::endl;
     }
     
-    std::cout << "Real-time analysis results saved" << std::endl;
+    if (g_analysis_hadron_before_art) {
+        g_analysis_hadron_before_art->SaveResults("ana/hadron-before-art_analysis.root");
+        delete g_analysis_hadron_before_art;
+        g_analysis_hadron_before_art = nullptr;
+        std::cout << "Hadron-before-ART analysis results saved" << std::endl;
+    }
+    
+    if (g_analysis_hadron_before_melting) {
+        g_analysis_hadron_before_melting->SaveResults("ana/hadron-before-melting_analysis.root");
+        delete g_analysis_hadron_before_melting;
+        g_analysis_hadron_before_melting = nullptr;
+        std::cout << "Hadron-before-melting analysis results saved" << std::endl;
+    }
+    
+    std::cout << "All 5 real-time analysis results saved" << std::endl;
 }
 
 void analyze_current_event_() {
@@ -777,6 +809,86 @@ void analyze_parton_event_() {
             current_eventID,
             current_impactParameter,
             parton_particle_count,
+            particle_pid,
+            px_array, py_array, pz_array,
+            x_array, y_array, z_array
+        );
+        
+        // Clean up
+        delete[] px_array;
+        delete[] py_array;
+        delete[] pz_array;
+        delete[] x_array;
+        delete[] y_array;
+        delete[] z_array;
+    }
+}
+
+void analyze_hadron_before_art_event_() {
+    // Analyze hadron-before-art event
+    if (g_analysis_hadron_before_art && hadron_before_art_particle_count > 0) {
+        // Create arrays for analysis
+        double* px_array = new double[hadron_before_art_particle_count];
+        double* py_array = new double[hadron_before_art_particle_count];
+        double* pz_array = new double[hadron_before_art_particle_count];
+        double* x_array = new double[hadron_before_art_particle_count];
+        double* y_array = new double[hadron_before_art_particle_count];
+        double* z_array = new double[hadron_before_art_particle_count];
+        
+        for (int i = 0; i < hadron_before_art_particle_count; i++) {
+            px_array[i] = particle_px[i];
+            py_array[i] = particle_py[i];
+            pz_array[i] = particle_pz[i];
+            x_array[i] = particle_x[i];
+            y_array[i] = particle_y[i];
+            z_array[i] = particle_z[i];
+        }
+        
+        // Call analysis
+        g_analysis_hadron_before_art->AnalyzeEvent(
+            current_eventID,
+            current_impactParameter,
+            hadron_before_art_particle_count,
+            particle_pid,
+            px_array, py_array, pz_array,
+            x_array, y_array, z_array
+        );
+        
+        // Clean up
+        delete[] px_array;
+        delete[] py_array;
+        delete[] pz_array;
+        delete[] x_array;
+        delete[] y_array;
+        delete[] z_array;
+    }
+}
+
+void analyze_hadron_before_melting_event_() {
+    // Analyze hadron-before-melting event
+    if (g_analysis_hadron_before_melting && hadron_before_melting_particle_count > 0) {
+        // Create arrays for analysis
+        double* px_array = new double[hadron_before_melting_particle_count];
+        double* py_array = new double[hadron_before_melting_particle_count];
+        double* pz_array = new double[hadron_before_melting_particle_count];
+        double* x_array = new double[hadron_before_melting_particle_count];
+        double* y_array = new double[hadron_before_melting_particle_count];
+        double* z_array = new double[hadron_before_melting_particle_count];
+        
+        for (int i = 0; i < hadron_before_melting_particle_count; i++) {
+            px_array[i] = particle_px[i];
+            py_array[i] = particle_py[i];
+            pz_array[i] = particle_pz[i];
+            x_array[i] = particle_x[i];
+            y_array[i] = particle_y[i];
+            z_array[i] = particle_z[i];
+        }
+        
+        // Call analysis
+        g_analysis_hadron_before_melting->AnalyzeEvent(
+            current_eventID,
+            current_impactParameter,
+            hadron_before_melting_particle_count,
             particle_pid,
             px_array, py_array, pz_array,
             x_array, y_array, z_array

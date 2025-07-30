@@ -15,7 +15,7 @@ log            = outputs/logs/job_$(Process).log
 # 执行策略
 should_transfer_files   = YES
 transfer_executable     = True
-transfer_input_files    = ../ampt,../analysisAll_flexible,templates/input.ampt.template
+transfer_input_files    = ../ampt,templates/input.ampt.template
 when_to_transfer_output = ON_EXIT
 
 # 环境变量

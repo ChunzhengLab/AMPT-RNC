@@ -12,36 +12,46 @@ using namespace std;
 AnalysisCore* g_analysis_ampt = nullptr;
 AnalysisCore* g_analysis_zpc = nullptr;
 AnalysisCore* g_analysis_parton = nullptr;
+AnalysisCore* g_analysis_hadron_before_art = nullptr;
+AnalysisCore* g_analysis_hadron_before_melting = nullptr;
 
 AnalysisCore::AnalysisCore() : processed_events(0), isHadronMode(true) {
-    h_mult = nullptr;
-    h_centrality = nullptr;
     p_delta_momentum = nullptr;
     p_gamma_momentum = nullptr;
     p_delta_spatial = nullptr;
     p_gamma_spatial = nullptr;
-    
-    for (int i = 0; i < 9; i++) {
-        h_mult_cent[i] = nullptr;
-    }
 }
 
 AnalysisCore::~AnalysisCore() {
     // ROOT会自动管理内存，但显式删除更安全
-    delete h_mult;
-    delete h_centrality;
     delete p_delta_momentum;
     delete p_gamma_momentum;
     delete p_delta_spatial;
     delete p_gamma_spatial;
     
-    for (int i = 0; i < 9; i++) {
-        delete h_mult_cent[i];
+    // 删除角度关联直方图
+    for (auto& pair : map_h1_angCorr_momentum_pidpair) {
+        delete pair.second;
+    }
+    for (auto& pair : map_h1_angCorr_spatial_pidpair) {
+        delete pair.second;
+    }
+    
+    // 删除单粒子直方图
+    for (auto& pair : map_h1_pt_pid) {
+        delete pair.second;
+    }
+    for (auto& pair : map_h1_phi_pid) {
+        delete pair.second;
+    }
+    for (auto& pair : map_p_v2_pid) {
+        delete pair.second;
     }
 }
 
-void AnalysisCore::Initialize(bool hadronMode) {
+void AnalysisCore::Initialize(bool hadronMode, const string& analysis_name) {
     isHadronMode = hadronMode;
+    this->analysis_name = analysis_name;
     
     // 设置粒子定义 - 与analysisAll_flexible.cxx完全对齐
     if (isHadronMode) {
@@ -52,32 +62,22 @@ void AnalysisCore::Initialize(bool hadronMode) {
         pid_codes = {2, -2, 1, -1, 3, -3};
     }
     
-    // 基础直方图
-    h_mult = new TH1D("mult", "Multiplicity", 1000, 0, 10000);
-    h_centrality = new TH1D("centrality", "Centrality", 10, 0, 10);
-    
-    // 按中心度的多重数分布
-    for (int i = 0; i < 9; i++) {
-        h_mult_cent[i] = new TH1D(Form("h_mult_cent%d", i), 
-                                   Form("Multiplicity for %d-%d%%;N_{particles};Counts", i*10, (i+1)*10),
-                                   1000, 0, 100000);
-    }
+    // 移除所有中心度相关的直方图
     
     // 计算粒子对的总数 - 与原版算法相同
     int nPairTypes = (pid_names.size() * (pid_names.size() + 1)) / 2;
     
-    // 创建TProfile - 对齐原版结构
-    string data_label = isHadronMode ? "hadron" : "parton";
-    p_delta_momentum = new TProfile(Form("p_delta_momentum_%s", data_label.c_str()), 
+    // 创建TProfile - 使用具体的分析名称避免冲突
+    p_delta_momentum = new TProfile(Form("p_delta_momentum_%s", analysis_name.c_str()), 
                                     "Delta = <cos(phi_1 - phi_2)> in momentum space;Pair type;Delta", 
                                     nPairTypes, 0, nPairTypes);
-    p_gamma_momentum = new TProfile(Form("p_gamma_momentum_%s", data_label.c_str()), 
+    p_gamma_momentum = new TProfile(Form("p_gamma_momentum_%s", analysis_name.c_str()), 
                                     "Gamma = <cos(phi_1 + phi_2)> in momentum space;Pair type;Gamma", 
                                     nPairTypes, 0, nPairTypes);
-    p_delta_spatial = new TProfile(Form("p_delta_spatial_%s", data_label.c_str()), 
+    p_delta_spatial = new TProfile(Form("p_delta_spatial_%s", analysis_name.c_str()), 
                                    "Delta = <cos(phi_1 - phi_2)> in spatial coordinates;Pair type;Delta", 
                                    nPairTypes, 0, nPairTypes);
-    p_gamma_spatial = new TProfile(Form("p_gamma_spatial_%s", data_label.c_str()), 
+    p_gamma_spatial = new TProfile(Form("p_gamma_spatial_%s", analysis_name.c_str()), 
                                    "Gamma = <cos(phi_1 + phi_2)> in spatial coordinates;Pair type;Gamma", 
                                    nPairTypes, 0, nPairTypes);
     
@@ -101,11 +101,11 @@ void AnalysisCore::Initialize(bool hadronMode) {
             
             pidpair_to_bin[pidpair] = binIndex;
             
-            // 初始化角度关联直方图 - 对齐原版参数
+            // 初始化角度关联直方图 - 对齐原版参数，使用具体分析名称
             string pair_name = pid_names[i] + "_" + pid_names[j];
-            map_h1_angCorr_momentum_pidpair[pidpair] = new TH1D(Form("h1_angCorr_momentum_%s", pair_name.c_str()), 
+            map_h1_angCorr_momentum_pidpair[pidpair] = new TH1D(Form("h1_angCorr_momentum_%s_%s", analysis_name.c_str(), pair_name.c_str()), 
                                                                "", 32, -TMath::Pi()/2, 3*TMath::Pi()/2);
-            map_h1_angCorr_spatial_pidpair[pidpair] = new TH1D(Form("h1_angCorr_spatial_%s", pair_name.c_str()), 
+            map_h1_angCorr_spatial_pidpair[pidpair] = new TH1D(Form("h1_angCorr_spatial_%s_%s", analysis_name.c_str(), pair_name.c_str()), 
                                                               "", 32, -TMath::Pi()/2, 3*TMath::Pi()/2);
             
             binIndex++;
@@ -113,17 +113,12 @@ void AnalysisCore::Initialize(bool hadronMode) {
     }
     
     processed_events = 0;
+    
+    // 初始化分粒子直方图
+    InitializeParticleHistograms();
 }
 
-int AnalysisCore::GetCentrality(double impactParameter) {
-    // 使用与analysisAll_flexible.cxx完全相同的算法
-    for (int i = 1; i <= 10; ++i) {
-        double rMax = sqrt(10.0 * i / 100.0) * 2.0 * pow(197., 1.0/3.0) * 1.2;
-        if (impactParameter <= rMax) return i - 1;
-    }
-    // 对于大的冲击参数，返回中心度9而不是-1
-    return 9;
-}
+// 移除GetCentrality函数
 
 bool AnalysisCore::AcceptHadron(int pid, double pt, double eta) {
     // 接受的强子PID - 与analysisAll_flexible.cxx完全对齐
@@ -206,20 +201,25 @@ bool AnalysisCore::AcceptParticle(int pid, double px, double py, double pz) {
 void AnalysisCore::AnalyzeEvent(int eventID, double impactParameter, int nParticles,
                                int* pid, double* px, double* py, double* pz,
                                double* x, double* y, double* z) {
-    // 基础统计
-    h_mult->Fill(nParticles);
+    // 移除所有中心度判断和多重数统计
     
-    int cent = GetCentrality(impactParameter);
-    if (cent < 0 || cent >= 9) return; // 跳过边缘事件
-    
-    h_centrality->Fill(cent * 10 + 5); // 填充中心值
-    h_mult_cent[cent]->Fill(nParticles);
-    
-    // 收集接受的粒子
+    // 收集接受的粒子并填充单粒子直方图
     vector<int> accepted_indices;
     for (int i = 0; i < nParticles; i++) {
         if (AcceptParticle(pid[i], px[i], py[i], pz[i])) {
             accepted_indices.push_back(i);
+            
+            // 填充单粒子直方图
+            double pt = sqrt(px[i]*px[i] + py[i]*py[i]);
+            double phi = atan2(py[i], px[i]);
+            int particle_pid = pid[i];
+            
+            // 检查是否有该粒子类型的直方图
+            if (map_h1_pt_pid.find(particle_pid) != map_h1_pt_pid.end()) {
+                map_h1_pt_pid[particle_pid]->Fill(pt);
+                map_h1_phi_pid[particle_pid]->Fill(phi);
+                map_p_v2_pid[particle_pid]->Fill(pt, cos(2*phi));
+            }
         }
     }
     
@@ -266,35 +266,33 @@ void AnalysisCore::AnalyzeEvent(int eventID, double impactParameter, int nPartic
         }
     }
     
-    // 角度关联分析 - 仅针对30-40%中心度（对齐原版）
-    if (cent == 3) {
-        for (size_t iTrk = 0; iTrk < accepted_indices.size(); iTrk++) {
-            int idx_i = accepted_indices[iTrk];
-            int pdg_i = pid[idx_i];
-            double phi_momentum_i = atan2(py[idx_i], px[idx_i]);
-            double phi_spatial_i = atan2(y[idx_i], x[idx_i]);
+    // 角度关联分析 - 移除中心度筛选，对所有事件进行分析
+    for (size_t iTrk = 0; iTrk < accepted_indices.size(); iTrk++) {
+        int idx_i = accepted_indices[iTrk];
+        int pdg_i = pid[idx_i];
+        double phi_momentum_i = atan2(py[idx_i], px[idx_i]);
+        double phi_spatial_i = atan2(y[idx_i], x[idx_i]);
+        
+        for (size_t jTrk = 0; jTrk < accepted_indices.size(); jTrk++) {
+            if (iTrk == jTrk) continue;
             
-            for (size_t jTrk = 0; jTrk < accepted_indices.size(); jTrk++) {
-                if (iTrk == jTrk) continue;
+            int idx_j = accepted_indices[jTrk];
+            int pdg_j = pid[idx_j];
+            double phi_momentum_j = atan2(py[idx_j], px[idx_j]);
+            double phi_spatial_j = atan2(y[idx_j], x[idx_j]);
+            
+            PIDPairs pidpair = make_pair(min(pdg_i, pdg_j), max(pdg_i, pdg_j));
+            
+            // 检查此粒子对是否在我们的映射中
+            auto it = map_h1_angCorr_momentum_pidpair.find(pidpair);
+            if (it != map_h1_angCorr_momentum_pidpair.end()) {
+                // 动量空间关联
+                double dphi_momentum = range_delta_phi(phi_momentum_i - phi_momentum_j);
+                it->second->Fill(dphi_momentum);
                 
-                int idx_j = accepted_indices[jTrk];
-                int pdg_j = pid[idx_j];
-                double phi_momentum_j = atan2(py[idx_j], px[idx_j]);
-                double phi_spatial_j = atan2(y[idx_j], x[idx_j]);
-                
-                PIDPairs pidpair = make_pair(min(pdg_i, pdg_j), max(pdg_i, pdg_j));
-                
-                // 检查此粒子对是否在我们的映射中
-                auto it = map_h1_angCorr_momentum_pidpair.find(pidpair);
-                if (it != map_h1_angCorr_momentum_pidpair.end()) {
-                    // 动量空间关联
-                    double dphi_momentum = range_delta_phi(phi_momentum_i - phi_momentum_j);
-                    it->second->Fill(dphi_momentum);
-                    
-                    // 空间关联
-                    double dphi_spatial = range_delta_phi(phi_spatial_i - phi_spatial_j);
-                    map_h1_angCorr_spatial_pidpair[pidpair]->Fill(dphi_spatial);
-                }
+                // 空间关联
+                double dphi_spatial = range_delta_phi(phi_spatial_i - phi_spatial_j);
+                map_h1_angCorr_spatial_pidpair[pidpair]->Fill(dphi_spatial);
             }
         }
     }
@@ -315,12 +313,7 @@ void AnalysisCore::AnalyzeEvent(int eventID, double impactParameter, int nPartic
 void AnalysisCore::SaveResults(const char* filename) {
     TFile* f = new TFile(filename, "RECREATE");
     
-    h_mult->Write();
-    h_centrality->Write();
-    
-    for (int i = 0; i < 9; i++) {
-        h_mult_cent[i]->Write();
-    }
+    // 移除多重数和中心度相关的直方图
     
     // 写入delta和gamma的TProfile
     p_delta_momentum->Write();
@@ -336,10 +329,44 @@ void AnalysisCore::SaveResults(const char* filename) {
         pair.second->Write();
     }
     
+    // 写入单粒子直方图
+    for (auto& pair : map_h1_pt_pid) {
+        pair.second->Write();
+    }
+    for (auto& pair : map_h1_phi_pid) {
+        pair.second->Write();
+    }
+    for (auto& pair : map_p_v2_pid) {
+        pair.second->Write();
+    }
+    
     f->Close();
     
     cout << "Analysis results saved to " << filename << endl;
     cout << "Total events processed: " << processed_events << endl;
+}
+
+void AnalysisCore::InitializeParticleHistograms() {
+    // 为每种粒子类型创建pt、phi和v2直方图
+    for (size_t i = 0; i < pid_codes.size(); i++) {
+        int pid = pid_codes[i];
+        string pid_name = pid_names[i];
+        
+        // pt直方图 (0-10 GeV, 100 bins)
+        map_h1_pt_pid[pid] = new TH1D(Form("h1_pt_%s_%s", analysis_name.c_str(), pid_name.c_str()),
+                                      Form("p_T distribution for %s;p_T (GeV/c);Counts", pid_name.c_str()),
+                                      100, 0, 10);
+        
+        // phi直方图 (-pi to pi, 64 bins)
+        map_h1_phi_pid[pid] = new TH1D(Form("h1_phi_%s_%s", analysis_name.c_str(), pid_name.c_str()),
+                                       Form("#phi distribution for %s;#phi (rad);Counts", pid_name.c_str()),
+                                       64, -TMath::Pi(), TMath::Pi());
+        
+        // v2 TProfile (pt vs cos(2*phi))
+        map_p_v2_pid[pid] = new TProfile(Form("p_v2_%s_%s", analysis_name.c_str(), pid_name.c_str()),
+                                         Form("v_2 vs p_T for %s;p_T (GeV/c);<cos(2#phi)>", pid_name.c_str()),
+                                         50, 0, 5);
+    }
 }
 
 void AnalysisCore::SaveCheckpoint() {

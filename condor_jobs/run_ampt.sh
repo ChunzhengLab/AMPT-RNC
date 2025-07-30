@@ -117,16 +117,15 @@ if [ ! -f "$PROJECT_DIR/ampt" ]; then
     exit 1
 fi
 
-if [ ! -f "$PROJECT_DIR/analysisAll_flexible" ]; then
-    echo "错误: 分析程序不存在: $PROJECT_DIR/analysisAll_flexible"
-    echo "请先在主目录运行: make -f Makefile.analysis analysisAll_flexible"
-    exit 1
+# 检查AMPT是否包含实时分析功能
+if ! grep -q "init_analysis_" "$PROJECT_DIR/ampt"; then
+    echo "警告: AMPT程序似乎未包含实时分析功能"
+    echo "建议检查ROOT接口是否正确编译"
 fi
 
 echo "复制程序文件到工作目录..."
 cd "$WORK_DIR"
 cp "$PROJECT_DIR/ampt" .
-cp "$PROJECT_DIR/analysisAll_flexible" .
 cp "$CONFIG_FILE" input.ampt
 
 # 验证复制成功
@@ -180,10 +179,13 @@ if [ -d "ana" ]; then
                     ;;
             esac
             
-            echo "分析文件: $rootfile -> $output_analysis (格式: $format)"
-            ./analysisAll_flexible "$rootfile" "$output_analysis" "$format" || {
-                echo "警告: 分析文件 $rootfile 失败"
-            }
+            echo "分析文件已在AMPT运行时实时生成: ${rootfile}_analysis.root"
+            # 实时分析已内置在AMPT中，无需额外处理
+            if [ -f "${rootfile}_analysis.root" ]; then
+                echo "✓ 实时分析文件已生成: ${rootfile}_analysis.root"
+            else
+                echo "警告: 实时分析文件未找到: ${rootfile}_analysis.root"
+            fi
         fi
     done
 else

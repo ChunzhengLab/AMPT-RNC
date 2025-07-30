@@ -60,8 +60,11 @@ if [ ! -f "ampt" ]; then
     exit 1
 fi
 
-if [ ! -f "analysisAll_flexible" ]; then
-    echo -e "${YELLOW}警告: 分析程序不存在，跳过分析步骤${NC}"
+# 检查AMPT是否包含实时分析功能
+if grep -q "init_analysis_" ampt; then
+    echo -e "${GREEN}✓ 检测到实时分析功能${NC}"
+else
+    echo -e "${YELLOW}警告: 未检测到实时分析功能${NC}"
 fi
 
 # 创建或使用测试目录
@@ -141,9 +144,7 @@ if [ "$ANALYSIS_ONLY" = false ]; then
     fi
 fi
 
-if [ -f "$PROJECT_DIR/analysisAll_flexible" ]; then
-    cp "$PROJECT_DIR/analysisAll_flexible" .
-fi
+# 实时分析已内置在AMPT中，无需复制额外的分析程序
 
 echo -e "${GREEN}✓${NC} 程序文件复制成功"
 
@@ -169,62 +170,31 @@ else
 fi
 fi  # 结束 ANALYSIS_ONLY 检查
 
-# 运行分析程序 - 分析所有生成的ROOT文件
-if [ -f "./analysisAll_flexible" ]; then
-    echo
-    echo "开始运行分析程序..."
-    if [ -d "ana" ]; then
-        analysis_success=0
-        analysis_total=0
-        
-        for rootfile in ana/*.root; do
-            if [ -f "$rootfile" ]; then
-                filename=$(basename "$rootfile" .root)
-                output_analysis="ana/${filename}_analysis.root"
-                
-                # 根据文件名确定格式
-                case "$filename" in
-                    "ampt")
-                        format="ampt"
-                        ;;
-                    "zpc")
-                        format="zpc"
-                        ;;
-                    "parton-initial")
-                        format="parton_initial"
-                        ;;
-                    "hadron-before-art")
-                        format="hadron_before_art"
-                        ;;
-                    "hadron-before-melting")
-                        format="hadron_before_melting"
-                        ;;
-                    *)
-                        format="auto"
-                        ;;
-                esac
-                
-                echo "  分析文件: $rootfile -> $output_analysis (格式: $format)"
-                
-                analysis_total=$((analysis_total + 1))
-                if ./analysisAll_flexible "$rootfile" "$output_analysis" "$format"; then
-                    analysis_success=$((analysis_success + 1))
-                    echo -e "    ${GREEN}✓${NC} 分析成功"
-                else
-                    echo -e "    ${YELLOW}!${NC} 分析失败"
-                fi
-            fi
-        done
-        
-        if [ $analysis_total -gt 0 ]; then
-            echo -e "${GREEN}✓${NC} 分析完成: $analysis_success/$analysis_total 个文件成功"
-        else
-            echo -e "${YELLOW}!${NC} 未找到ROOT文件进行分析"
+# 检查实时分析结果
+echo
+echo "检查实时分析结果..."
+if [ -d "ana" ]; then
+    analysis_files=0
+    
+    for analysis_file in ana/*_analysis.root; do
+        if [ -f "$analysis_file" ]; then
+            analysis_files=$((analysis_files + 1))
+            echo -e "  ${GREEN}✓${NC} 找到分析文件: $(basename "$analysis_file")"
         fi
+    done
+    
+    if [ $analysis_files -gt 0 ]; then
+        echo -e "${GREEN}✓${NC} 找到 $analysis_files 个实时分析文件"
     else
-        echo -e "${YELLOW}!${NC} 未找到ana目录，跳过分析步骤"
+        echo -e "${YELLOW}!${NC} 未找到实时分析文件"
+        echo "请检查AMPT程序是否正确包含实时分析功能"
     fi
 else
+    echo -e "${YELLOW}!${NC} 未找到ana目录，跳过分析步骤"
+fi
+
+# 其他分析已完成，原有的else分支已不需要
+if false; then
     echo -e "${YELLOW}!${NC} 分析程序不存在，跳过分析步骤"
 fi
 
