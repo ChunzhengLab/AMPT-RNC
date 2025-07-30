@@ -55,6 +55,10 @@ echo "  固定参数  : 能量=${ENERGY}GeV(ALICE LHC), 事件数=${NEVNT}, 撞�
 # ----------------------------
 # 3. 工作目录准备
 # ----------------------------
+# 确保所有必要的目录结构存在
+mkdir -p "$PROJECT_DIR/condor_jobs/outputs/logs"
+mkdir -p "$PROJECT_DIR/condor_jobs/outputs/results"
+
 WORK_DIR="condor_jobs/outputs/job_${JOB_ID}"
 mkdir -p "$WORK_DIR"
 

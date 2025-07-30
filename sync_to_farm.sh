@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# 同步AMPT-RNC项目到fram服务器
+# 同步AMPT-RNC项目到farm服务器
 # 排除: *.dat, *.root文件和.git目录
 # ==============================================================================
 
@@ -17,7 +17,7 @@ LOCAL_DIR="$(dirname "$0")"  # 当前脚本所在目录
 REMOTE_HOST="hirg"
 REMOTE_DIR="/storage/fdunphome/wangchunzheng/AMPT-RNC"
 
-echo -e "${BLUE}=== 同步到fram服务器 ===${NC}"
+echo -e "${BLUE}=== 同步到farm服务器 ===${NC}"
 echo "本地目录: $LOCAL_DIR"
 echo "远程目录: $REMOTE_HOST:$REMOTE_DIR"
 echo
