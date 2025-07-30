@@ -14,8 +14,17 @@ source /storage/fdunphome/wangchunzheng/miniconda3/etc/profile.d/conda.sh
 conda activate cpp_dev
 echo "Conda环境已激活: cpp_dev"
 
-PROJECT_DIR="${PROJECT_DIR:-/storage/fdunphome/wangchunzheng/AMPT-RNC}"
+# 自动检测项目目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_DIR"
+
+# 可选的conda环境激活（如果存在）
+if [[ -n "$CONDA_DEFAULT_ENV" ]] || command -v conda >/dev/null 2>&1; then
+    echo "检测到conda环境: ${CONDA_DEFAULT_ENV:-未激活}"
+else
+    echo "未检测到conda环境"
+fi
 
 # 颜色定义
 RED='\033[0;31m'
@@ -90,8 +99,8 @@ ZPC_SEED=$((1 + $RANDOM % 100))
 
 echo "随机种子: HIJING=$HIJING_SEED, ZPC=$ZPC_SEED"
 
-# 生成测试配置文件
-TEMPLATE_FILE="../templates/input.ampt.template"
+# 生成测试配置文件 - 使用已定义的路径
+TEMPLATE_FILE="$SCRIPT_DIR/../templates/input.ampt.template"
 CONFIG_FILE="$TEST_DIR/input.ampt"
 
 if [ ! -f "$TEMPLATE_FILE" ]; then

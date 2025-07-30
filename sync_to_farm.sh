@@ -60,6 +60,7 @@ rsync -avz --progress \
     --exclude='exec' \
     --exclude='*.tmp' \
     --exclude='.DS_Store' \
+    --exclude='legacy/' \
     "$LOCAL_DIR/" "$REMOTE_HOST:$REMOTE_DIR/"
 
 # 检查同步结果
