@@ -6,6 +6,7 @@
 
 #include <TFile.h>
 #include <TTree.h>
+#include "analysis_core.h"
 
 // Global variables for ROOT interface
 extern TFile* ampt_file;
@@ -44,6 +45,13 @@ extern "C" {
     void write_ampt_particle_(int* pid, double* px, double* py, double* pz, double* mass,
                             double* x, double* y, double* z, double* t);
     void write_parton_initial_event_header_(int* eventID, int* miss, int* nParticles, double* b);
+    
+    // Real-time analysis interface functions
+    void init_analysis_();
+    void finalize_analysis_();
+    void analyze_current_event_();
+    void analyze_zpc_event_();
+    void analyze_parton_event_();
 }
 
 #endif

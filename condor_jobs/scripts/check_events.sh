@@ -63,9 +63,32 @@ check_single_file() {
     echo "大小: $file_size"
     echo "事件数: $total_events"
     
+    # 获取作业ID并显示HTCondor信息
+    if [[ "$file" =~ job_([0-9]+) ]]; then
+        local job_id="${BASH_REMATCH[1]}"
+        get_condor_info "$job_id"
+    fi
+    
     if [ "$total_events" -gt 0 ]; then
         echo "最新事件:"
         grep -E "$EVENT_PATTERN" "$file" | tail -1 | awk '{printf "  事件 %d: %d 个粒子, 撞击参数 %.2f\n", $1, $3, $4}'
+        
+        # 计算事件处理速率
+        if command -v condor_q &> /dev/null && [[ "$file" =~ job_([0-9]+) ]]; then
+            local job_id="${BASH_REMATCH[1]}"
+            local time_info=$(condor_q -run -constraint "ProcId==$job_id" -format "%d|%d\n" LastMatchTime ServerTime 2>/dev/null)
+            if [ -n "$time_info" ]; then
+                local start_time=$(echo "$time_info" | cut -d'|' -f1)
+                local server_time=$(echo "$time_info" | cut -d'|' -f2)
+                if [ -n "$start_time" ] && [ -n "$server_time" ] && [ "$start_time" -gt 0 ]; then
+                    local runtime=$((server_time - start_time))
+                    if [ "$runtime" -gt 0 ]; then
+                        local events_per_hour=$((total_events * 3600 / runtime))
+                        echo "  处理速率: ${events_per_hour} 事件/小时"
+                    fi
+                fi
+            fi
+        fi
     fi
     echo ""
 }
@@ -86,6 +109,37 @@ scan_all_jobs() {
     done
 }
 
+# 获取HTCondor作业信息
+get_condor_info() {
+    local job_id="$1"
+    
+    # 尝试获取HTCondor信息（如果可用）
+    if command -v condor_q &> /dev/null; then
+        # 获取运行中作业的信息
+        local condor_info=$(condor_q -run -constraint "ProcId==$job_id" -format "%s|" RemoteHost -format "%d|" MemoryUsage -format "%d|" LastMatchTime -format "%d\n" ServerTime 2>/dev/null | head -1)
+        
+        if [ -n "$condor_info" ]; then
+            local remote_host=$(echo "$condor_info" | cut -d'|' -f1)
+            local memory_usage=$(echo "$condor_info" | cut -d'|' -f2)
+            local start_time=$(echo "$condor_info" | cut -d'|' -f3)
+            local server_time=$(echo "$condor_info" | cut -d'|' -f4)
+            
+            # 计算运行时间
+            if [ -n "$start_time" ] && [ -n "$server_time" ] && [ "$start_time" -gt 0 ]; then
+                local runtime=$((server_time - start_time))
+                local hours=$((runtime / 3600))
+                local minutes=$(((runtime % 3600) / 60))
+                local runtime_str="${hours}h${minutes}m"
+                echo "    HTCondor: $remote_host, ${memory_usage}MB内存, 运行${runtime_str}"
+            else
+                echo "    HTCondor: $remote_host, ${memory_usage}MB内存"
+            fi
+        else
+            echo "    HTCondor: 作业未运行或已完成"
+        fi
+    fi
+}
+
 # 显示汇总信息
 show_summary() {
     local files=("$@")
@@ -93,8 +147,17 @@ show_summary() {
     local active_jobs=0
     local total_events=0
     local completed_jobs=0
+    local total_memory=0
+    local memory_jobs=0
     
     echo "=== 汇总统计 ==="
+    
+    # 获取HTCondor内存信息
+    if command -v condor_q &> /dev/null; then
+        echo "HTCondor作业内存使用:"
+        condor_q -run -format "  作业 %s: " ProcId -format "%s " RemoteHost -format "%d MB\n" MemoryUsage 2>/dev/null || echo "  无运行中作业"
+        echo ""
+    fi
     
     for file in "${files[@]}"; do
         if [[ "$file" =~ job_([0-9]+) ]]; then
@@ -117,14 +180,29 @@ show_summary() {
                     completed_jobs=$((completed_jobs + 1))
                 fi
             fi
+            
+            # 尝试获取作业内存使用
+            if command -v condor_q &> /dev/null && [[ "$job_id" != "unknown" ]]; then
+                local memory=$(condor_q -run -constraint "ProcId==$job_id" -format "%d" MemoryUsage 2>/dev/null)
+                if [ -n "$memory" ] && [ "$memory" -gt 0 ]; then
+                    total_memory=$((total_memory + memory))
+                    memory_jobs=$((memory_jobs + 1))
+                fi
+            fi
         fi
     done
     
-    echo "总作业数: $total_jobs"
-    echo "活跃作业: $active_jobs"
-    echo "完成作业: $completed_jobs"
-    echo "总事件数: $total_events"
-    echo "平均事件: $((total_events / (active_jobs > 0 ? active_jobs : 1)))"
+    echo "文件统计:"
+    echo "  总作业数: $total_jobs"
+    echo "  活跃作业: $active_jobs"
+    echo "  完成作业: $completed_jobs"
+    echo "  总事件数: $total_events"
+    echo "  平均事件: $((total_events / (active_jobs > 0 ? active_jobs : 1)))"
+    
+    if [ "$memory_jobs" -gt 0 ]; then
+        echo "  平均内存: $((total_memory / memory_jobs)) MB"
+        echo "  总内存使用: ${total_memory} MB"
+    fi
     echo ""
 }
 

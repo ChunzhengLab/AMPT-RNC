@@ -1,6 +1,7 @@
 #include "root_interface.h"
 #include <iostream>
 #include <cstring>
+#include "analysis_core.h"
 
 // Global variables definition
 TFile* ampt_file = nullptr;
@@ -36,6 +37,9 @@ extern "C" {
 
 void init_root_() {
     
+    // Initialize real-time analysis
+    init_analysis_();
+    
     // Create ROOT file
     ampt_file = new TFile("ana/ampt.root", "RECREATE");
     if (!ampt_file || ampt_file->IsZombie()) {
@@ -45,6 +49,10 @@ void init_root_() {
     
     // Create tree
     ampt_tree = new TTree("ampt", "AMPT final hadrons");
+    
+    // 关键内存管理设置 - 解决200事件内存累积问题
+    ampt_tree->SetAutoFlush(50);              // 每50个事件刷盘，更可预测的内存管理
+    ampt_tree->SetAutoSave(200);              // 每200个事件创建恢复点（适合200事件任务）
     
     // Create branches - event header
     ampt_tree->Branch("eventID", &current_eventID, "eventID/I");
@@ -77,6 +85,8 @@ void finalize_root_() {
     
     if (ampt_file && ampt_tree) {
         ampt_file->cd();
+        // 强制保存所有数据并刷新basket，确保数据完整性
+        ampt_tree->AutoSave("SaveSelf;FlushBaskets");
         ampt_tree->Write();  // Simple write without flags
         ampt_file->Close();
         delete ampt_file;
@@ -85,6 +95,9 @@ void finalize_root_() {
         
         std::cout << "ROOT interface finalized" << std::endl;
     }
+    
+    // Finalize real-time analysis
+    finalize_analysis_();
 }
 
 void write_ampt_event_header_(int* eventID, int* runID, int* nParticles, double* b,
@@ -140,11 +153,14 @@ void write_ampt_particle_(int* pid, double* px, double* py, double* pz, double* 
     particle_count++;
     
     
-    // When we have all particles, fill the tree
+    // When we have all particles, fill the tree and analyze event
     if (particle_count == current_nParticles) {
         if (ampt_tree) {
             ampt_tree->Fill();
         }
+        
+        // Perform real-time analysis on completed event
+        analyze_current_event_();
     }
 }
 
@@ -162,6 +178,10 @@ void init_zpc_root_() {
     }
     
     zpc_tree = new TTree("zpc", "AMPT zero momentum frame partons");
+    
+    // 内存管理设置
+    zpc_tree->SetAutoFlush(50);
+    zpc_tree->SetAutoSave(200);
     
     // Create branches - event header (IAEVT, MISS, MUL, bimp, NELP, NINP, NELT, NINTHJ)
     zpc_tree->Branch("eventID", &current_eventID, "eventID/I");
@@ -191,6 +211,7 @@ void finalize_zpc_root_() {
     
     if (zpc_file && zpc_tree) {
         zpc_file->cd();
+        zpc_tree->AutoSave("SaveSelf;FlushBaskets");
         zpc_tree->Write();
         zpc_file->Close();
         delete zpc_file;
@@ -252,6 +273,9 @@ void write_zpc_particle_(int* pid, double* px, double* py, double* pz, double* m
         if (zpc_tree) {
             zpc_tree->Fill();
         }
+        
+        // Perform real-time analysis on completed ZPC event
+        analyze_zpc_event_();
     }
 }
 
@@ -274,6 +298,10 @@ void init_parton_initial_root_() {
     }
     
     parton_tree = new TTree("parton_initial", "AMPT initial partons after propagation");
+    
+    // 内存管理设置
+    parton_tree->SetAutoFlush(50);
+    parton_tree->SetAutoSave(200);
     
     // Create branches - event header (iaevt, miss, mul, bimp)
     parton_tree->Branch("eventID", &current_eventID, "eventID/I");
@@ -302,6 +330,7 @@ void finalize_parton_initial_root_() {
     
     if (parton_file && parton_tree) {
         parton_file->cd();
+        parton_tree->AutoSave("SaveSelf;FlushBaskets");
         parton_tree->Write();
         parton_file->Close();
         delete parton_file;
@@ -365,6 +394,9 @@ void write_parton_initial_particle_(int* pid, double* px, double* py, double* pz
         if (parton_tree) {
             parton_tree->Fill();
         }
+        
+        // Perform real-time analysis on completed parton event
+        analyze_parton_event_();
     }
 }
 
@@ -382,6 +414,10 @@ void init_hadron_before_art_root_() {
     }
     
     hadron_before_art_tree = new TTree("hadron_before_art", "AMPT hadrons before ART cascade");
+    
+    // 内存管理设置
+    hadron_before_art_tree->SetAutoFlush(50);
+    hadron_before_art_tree->SetAutoSave(200);
     
     // Create branches - event header (J(IAEVT), MISS, IAINT2(1), bimp, NELP, NINP, NELT, NINTHJ)
     hadron_before_art_tree->Branch("eventID", &current_eventID, "eventID/I");
@@ -411,6 +447,7 @@ void finalize_hadron_before_art_root_() {
     
     if (hadron_before_art_file && hadron_before_art_tree) {
         hadron_before_art_file->cd();
+        hadron_before_art_tree->AutoSave("SaveSelf;FlushBaskets");
         hadron_before_art_tree->Write();
         hadron_before_art_file->Close();
         delete hadron_before_art_file;
@@ -490,6 +527,10 @@ void init_hadron_before_melting_root_() {
     
     hadron_before_melting_tree = new TTree("hadron_before_melting", "AMPT hadrons before string melting");
     
+    // 内存管理设置
+    hadron_before_melting_tree->SetAutoFlush(50);
+    hadron_before_melting_tree->SetAutoSave(200);
+    
     // Event header branches
     hadron_before_melting_tree->Branch("eventID", &current_eventID, "eventID/I");
     hadron_before_melting_tree->Branch("miss", &current_miss, "miss/I");
@@ -518,6 +559,7 @@ void finalize_hadron_before_melting_root_() {
     
     if (hadron_before_melting_file && hadron_before_melting_tree) {
         hadron_before_melting_file->cd();
+        hadron_before_melting_tree->AutoSave("SaveSelf;FlushBaskets");
         hadron_before_melting_tree->Write();
         hadron_before_melting_file->Close();
         delete hadron_before_melting_file;
@@ -579,6 +621,174 @@ void write_hadron_before_melting_particle_(int* pid, double* px, double* py, dou
         if (hadron_before_melting_tree) {
             hadron_before_melting_tree->Fill();
         }
+    }
+}
+
+// ===== Real-time analysis implementation =====
+void init_analysis_() {
+    // Initialize analysis objects for different data streams
+    if (!g_analysis_ampt) {
+        g_analysis_ampt = new AnalysisCore();
+        g_analysis_ampt->Initialize(true);  // hadron mode
+        std::cout << "Real-time analysis for AMPT data initialized" << std::endl;
+    }
+    
+    if (!g_analysis_zpc) {
+        g_analysis_zpc = new AnalysisCore();
+        g_analysis_zpc->Initialize(false);  // parton mode for ZPC
+        std::cout << "Real-time analysis for ZPC data initialized" << std::endl;
+    }
+    
+    if (!g_analysis_parton) {
+        g_analysis_parton = new AnalysisCore();
+        g_analysis_parton->Initialize(false);  // parton mode
+        std::cout << "Real-time analysis for Parton data initialized" << std::endl;
+    }
+}
+
+void finalize_analysis_() {
+    // Save analysis results for all data streams
+    if (g_analysis_ampt) {
+        g_analysis_ampt->SaveResults("ana/ampt_analysis.root");
+        delete g_analysis_ampt;
+        g_analysis_ampt = nullptr;
+        std::cout << "AMPT analysis results saved" << std::endl;
+    }
+    
+    if (g_analysis_zpc) {
+        g_analysis_zpc->SaveResults("ana/zpc_analysis.root");
+        delete g_analysis_zpc;
+        g_analysis_zpc = nullptr;
+        std::cout << "ZPC analysis results saved" << std::endl;
+    }
+    
+    if (g_analysis_parton) {
+        g_analysis_parton->SaveResults("ana/parton-initial_analysis.root");
+        delete g_analysis_parton;
+        g_analysis_parton = nullptr;
+        std::cout << "Parton analysis results saved" << std::endl;
+    }
+    
+    std::cout << "Real-time analysis results saved" << std::endl;
+}
+
+void analyze_current_event_() {
+    // Analyze the current complete event using the global particle arrays
+    if (g_analysis_ampt && particle_count > 0) {
+        // Create arrays for analysis (convert from global storage)
+        double* px_array = new double[particle_count];
+        double* py_array = new double[particle_count];
+        double* pz_array = new double[particle_count];
+        double* x_array = new double[particle_count];
+        double* y_array = new double[particle_count];
+        double* z_array = new double[particle_count];
+        
+        for (int i = 0; i < particle_count; i++) {
+            px_array[i] = particle_px[i];
+            py_array[i] = particle_py[i];
+            pz_array[i] = particle_pz[i];
+            x_array[i] = particle_x[i];
+            y_array[i] = particle_y[i];
+            z_array[i] = particle_z[i];
+        }
+        
+        // Call analysis
+        g_analysis_ampt->AnalyzeEvent(
+            current_eventID,
+            current_impactParameter,
+            particle_count,
+            particle_pid,
+            px_array, py_array, pz_array,
+            x_array, y_array, z_array
+        );
+        
+        // Clean up
+        delete[] px_array;
+        delete[] py_array;
+        delete[] pz_array;
+        delete[] x_array;
+        delete[] y_array;
+        delete[] z_array;
+    }
+}
+
+void analyze_zpc_event_() {
+    // Analyze ZPC event
+    if (g_analysis_zpc && zpc_particle_count > 0) {
+        // Create arrays for analysis
+        double* px_array = new double[zpc_particle_count];
+        double* py_array = new double[zpc_particle_count];
+        double* pz_array = new double[zpc_particle_count];
+        double* x_array = new double[zpc_particle_count];
+        double* y_array = new double[zpc_particle_count];
+        double* z_array = new double[zpc_particle_count];
+        
+        for (int i = 0; i < zpc_particle_count; i++) {
+            px_array[i] = particle_px[i];
+            py_array[i] = particle_py[i];
+            pz_array[i] = particle_pz[i];
+            x_array[i] = particle_x[i];
+            y_array[i] = particle_y[i];
+            z_array[i] = particle_z[i];
+        }
+        
+        // Call analysis
+        g_analysis_zpc->AnalyzeEvent(
+            current_eventID,
+            current_impactParameter,
+            zpc_particle_count,
+            particle_pid,
+            px_array, py_array, pz_array,
+            x_array, y_array, z_array
+        );
+        
+        // Clean up
+        delete[] px_array;
+        delete[] py_array;
+        delete[] pz_array;
+        delete[] x_array;
+        delete[] y_array;
+        delete[] z_array;
+    }
+}
+
+void analyze_parton_event_() {
+    // Analyze parton event
+    if (g_analysis_parton && parton_particle_count > 0) {
+        // Create arrays for analysis
+        double* px_array = new double[parton_particle_count];
+        double* py_array = new double[parton_particle_count];
+        double* pz_array = new double[parton_particle_count];
+        double* x_array = new double[parton_particle_count];
+        double* y_array = new double[parton_particle_count];
+        double* z_array = new double[parton_particle_count];
+        
+        for (int i = 0; i < parton_particle_count; i++) {
+            px_array[i] = particle_px[i];
+            py_array[i] = particle_py[i];
+            pz_array[i] = particle_pz[i];
+            x_array[i] = particle_x[i];
+            y_array[i] = particle_y[i];
+            z_array[i] = particle_z[i];
+        }
+        
+        // Call analysis
+        g_analysis_parton->AnalyzeEvent(
+            current_eventID,
+            current_impactParameter,
+            parton_particle_count,
+            particle_pid,
+            px_array, py_array, pz_array,
+            x_array, y_array, z_array
+        );
+        
+        // Clean up
+        delete[] px_array;
+        delete[] py_array;
+        delete[] pz_array;
+        delete[] x_array;
+        delete[] y_array;
+        delete[] z_array;
     }
 }
 

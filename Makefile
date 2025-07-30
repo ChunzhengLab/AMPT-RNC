@@ -17,7 +17,7 @@ GFORTRAN_LIB = $(shell gfortran -print-file-name=libgfortran.dylib | xargs dirna
 
 # Source files
 FSRC = main.f amptsub.f linana.f zpc.f art1f.f hijing1.383_ampt.f hipyset1.35.f czcoal.f
-CXXSRC = root_interface.cpp
+CXXSRC = root_interface.cpp analysis_core.cpp
 
 # Object files
 FOBJ = $(FSRC:.f=.o)
